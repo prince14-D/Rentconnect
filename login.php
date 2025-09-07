@@ -8,28 +8,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $email = trim($_POST['email']);
     $password = trim($_POST['password']);
 
-    $stmt = $conn->prepare("SELECT id, name, password, role FROM users WHERE email=?");
+    $stmt = $conn->prepare("SELECT id, password, role FROM users WHERE email=?");
     $stmt->bind_param("s", $email);
     $stmt->execute();
     $result = $stmt->get_result();
 
     if ($result->num_rows == 1) {
-        $user = $result->fetch_assoc();
-
-        if (password_verify($password, $user['password'])) {
-            // set session
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['name'] = $user['name'];
-            $_SESSION['role'] = $user['role'];
-
-            if ($user['role'] == 'landlord') {
-                header("Location: landlord_dashboard.php");
-            } else {
-                header("Location: renter_dashboard.php");
-            }
+        $row = $result->fetch_assoc();
+        if (password_verify($password, $row['password'])) {
+            $_SESSION['user_id'] = $row['id'];
+            $_SESSION['role'] = $row['role'];
+            header("Location: " . ($row['role'] == 'landlord' ? "landlord_dashboard.php" : "renter_dashboard.php"));
             exit;
         } else {
-            $message = "Invalid password. Please try again.";
+            $message = "Invalid password.";
         }
     } else {
         $message = "No account found with that email.";
@@ -100,11 +92,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             color: #2196F3;
             text-decoration: none;
         }
+        .back-home {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .back-home a {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #2196F3;
+            color: white;
+            border-radius: 5px;
+            text-decoration: none;
+        }
+        .back-home a:hover {
+            background: #1976D2;
+        }
     </style>
 </head>
 <body>
     <div class="login-box">
-        <h2>Login to RentConnect</h2>
+        <h2>Login</h2>
         <?php if ($message): ?>
             <p class="message"><?php echo $message; ?></p>
         <?php endif; ?>
@@ -119,7 +126,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </form>
 
         <div class="alt">
-            Don’t have an account? <a href="signup.php">Sign Up</a>
+            Don't have an account? <a href="signup.php">Sign Up</a>
+        </div>
+
+        <!-- Back to Home Button -->
+        <div class="back-home">
+            <a href="index.php">⬅ Back to Home</a>
         </div>
     </div>
 </body>
