@@ -2,7 +2,7 @@
 session_start();
 include "db.php";
 
-// Handle search
+// Handle search filters
 $search_location = isset($_GET['location']) ? $_GET['location'] : '';
 $min_price = isset($_GET['min_price']) ? floatval($_GET['min_price']) : 0;
 $max_price = isset($_GET['max_price']) ? floatval($_GET['max_price']) : 0;
@@ -94,6 +94,10 @@ $properties = $stmt->get_result();
         footer { background: #222; color: #ccc; text-align: center; padding: 25px; margin-top: 50px; }
         footer a { color: #FF9800; text-decoration: none; }
 
+        /* Upload Btn */
+        .upload-btn { padding: 10px 16px; background: #4CAF50; color: white; border-radius: 8px; text-decoration: none; font-weight: bold; transition: 0.3s; }
+        .upload-btn:hover { background: #388E3C; }
+
         /* Responsive */
         @media (max-width: 768px) {
             nav { display: none; }
@@ -116,7 +120,11 @@ $properties = $stmt->get_result();
         <a href="signup.php">Sign Up</a>
         <a href="login.php">Login</a>
         <a href="contact.php">Contact</a>
-        <a href="upload_property.php">Upload Property</a>
+        <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'landlord'): ?>
+            <a href="upload_property.php" class="upload-btn">Upload Property</a>
+        <?php else: ?>
+            <a href="login.php" class="upload-btn">Upload Property</a>
+        <?php endif; ?>
     </nav>
 </header>
 
@@ -126,14 +134,21 @@ $properties = $stmt->get_result();
     <a href="signup.php">Sign Up</a>
     <a href="login.php">Login</a>
     <a href="contact.php">Contact</a>
-    <a href="upload_property.php">Upload Property</a>
+    <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'landlord'): ?>
+        <a href="upload_property.php">Upload Property</a>
+    <?php else: ?>
+        <a href="login.php">Upload Property</a>
+    <?php endif; ?>
 </div>
 
 <section class="hero">
+   <br>
+   <br>
+    <br>
+    <br>
     
 </section>
-<br>
-<br>
+
 <!-- Floating Search -->
 <div class="search-box">
     <form method="get" action="">
@@ -150,11 +165,12 @@ $properties = $stmt->get_result();
         <?php if ($properties->num_rows > 0): ?>
             <?php while($row = $properties->fetch_assoc()): ?>
                 <div class="property">
-                    <img src="uploads/<?php echo htmlspecialchars($row['photo']); ?>" alt="Property">
+                    <img src="get_image.php?id=<?php echo $row['id']; ?>" alt="Property">
                     <div class="content">
                         <h4><?php echo htmlspecialchars($row['title']); ?></h4>
                         <p>📍 <?php echo htmlspecialchars($row['location']); ?></p>
                         <p>💲 $<?php echo number_format($row['price']); ?></p>
+                        <p>📞 <?php echo htmlspecialchars($row['contact']); ?></p>
                         <a href="login.php">View Details</a>
                     </div>
                 </div>

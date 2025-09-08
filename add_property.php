@@ -2,6 +2,7 @@
 session_start();
 include "db.php";
 
+// Ensure landlord is logged in
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'landlord') {
     header("Location: login.php");
     exit;
@@ -12,7 +13,7 @@ $message = "";
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $title = $_POST['title'];
-    $address = $_POST['address'];
+    $location = $_POST['location'];  // ✅ corrected
     $price = $_POST['price'];
     $contact = $_POST['contact'];
     $bedrooms = $_POST['bedrooms'];
@@ -20,15 +21,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $description = $_POST['description'];
 
     if (isset($_FILES['photo']) && $_FILES['photo']['error'] == 0) {
-        // store as BLOB
+        // store image as BLOB
         $imageData = file_get_contents($_FILES['photo']['tmp_name']);
 
         $stmt = $conn->prepare("INSERT INTO properties 
-            (title, address, price, contact, bedrooms, bathrooms, description, photo_blob, owner_id) 
+            (title, location, price, contact, bedrooms, bathrooms, description, photo_blob, owner_id) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
         $stmt->bind_param("ssdsiissi", 
             $title, 
-            $address, 
+            $location,   // ✅ fixed
             $price, 
             $contact, 
             $bedrooms, 
@@ -71,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <?php if($message) echo "<p class='message'>$message</p>"; ?>
         <form method="post" enctype="multipart/form-data">
             <input type="text" name="title" placeholder="Property Title" required>
-            <input type="text" name="address" placeholder="Address" required>
+            <input type="text" name="location" placeholder="Location" required>
             <input type="number" step="0.01" name="price" placeholder="Price (USD)" required>
             <input type="text" name="contact" placeholder="Contact Info" required>
             <input type="number" name="bedrooms" placeholder="Number of Bedrooms">
