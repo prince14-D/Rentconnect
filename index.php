@@ -27,8 +27,7 @@ if ($max_price > 0) {
     $params[] = $max_price;
 }
 
-$sql .= "ORDER BY created_at DESC LIMIT 6"; // latest 6 properties
-
+$sql .= "ORDER BY created_at DESC LIMIT 6";
 $stmt = $conn->prepare($sql);
 if ($types) $stmt->bind_param($types, ...$params);
 $stmt->execute();
@@ -41,80 +40,68 @@ $properties = $stmt->get_result();
     <title>RentConnect - Find Homes in Liberia</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; background: #f8fafc; color: #333; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; background: #f9fbfd; color: #333; }
 
         /* Header */
-        header { background: linear-gradient(90deg, #4CAF50, #2E7D32); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
-        header h1 { margin: 0; font-size: 1.5em; }
-        nav { display: flex; gap: 15px; }
-        nav a { color: white; text-decoration: none; font-weight: bold; transition: 0.3s; }
-        nav a:hover { text-decoration: underline; }
-        
-        /* Hamburger Button */
-        .menu-toggle { display: none; font-size: 24px; cursor: pointer; }
+        header { background: white; box-shadow: 0 2px 6px rgba(0,0,0,0.1); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; }
+        header h1 { margin: 0; font-size: 1.5em; color: #2E7D32; }
+        nav { display: flex; gap: 20px; }
+        nav a { color: #333; text-decoration: none; font-weight: bold; transition: 0.3s; }
+        nav a:hover { color: #2E7D32; }
+        .menu-toggle { display: none; font-size: 26px; cursor: pointer; }
+
+        /* Mobile Nav */
         .mobile-nav { display: none; flex-direction: column; background: #2E7D32; padding: 10px; }
-        .mobile-nav a { padding: 10px; color: white; border-top: 1px solid rgba(255,255,255,0.2); }
+        .mobile-nav a { padding: 12px; color: white; border-bottom: 1px solid rgba(255,255,255,0.2); }
 
-        /* Hero Section */
+        /* Hero */
         .hero { 
-            background: url('images/home-bg.jpg') no-repeat center center/cover; 
-            color: white; 
-            text-align: center; 
-            padding: 90px 20px; 
-            position: relative; 
+            background: linear-gradient(rgba(0,0,0,0.6),rgba(0,0,0,0.6)), url('images/home-bg.png') center/cover no-repeat;
+            color: white; text-align: center; padding: 120px 20px 180px;
         }
-        .hero::after { content: ""; position: absolute; inset: 0; background: rgba(0,0,0,0.5); }
-        .hero h2, .hero p, .hero .buttons { position: relative; z-index: 2; }
-        .hero h2 { font-size: 2.5em; margin-bottom: 15px; }
-        .hero p { font-size: 1.2em; max-width: 600px; margin: auto; }
-        .hero .buttons { margin-top: 25px; display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; }
-        .hero a { padding: 12px 25px; border-radius: 30px; color: white; text-decoration: none; font-size: 1em; transition: 0.3s; }
-        .hero a.signup { background: #FF9800; }
-        .hero a.login { background: #2196F3; }
-        .hero a:hover { opacity: 0.9; }
+        .hero h2 { font-size: 2.8em; margin-bottom: 15px; }
+        .hero p { font-size: 1.2em; max-width: 650px; margin: auto; }
 
-        /* Sections */
-        .section { padding: 50px 20px; text-align: center; }
-        .section h3 { font-size: 1.8em; margin-bottom: 30px; color: #2E7D32; }
-
-        /* Features */
-        .features { display: flex; justify-content: center; gap: 30px; flex-wrap: wrap; }
-        .feature { background: white; padding: 20px; border-radius: 12px; width: 300px; box-shadow: 0 6px 14px rgba(0,0,0,0.1); transition: 0.3s; }
-        .feature:hover { transform: translateY(-5px); }
-        .feature h4 { margin-bottom: 15px; color: #2196F3; }
-
-        /* Search */
-        .search-box { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 800px; margin: 30px auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        /* Floating Search */
+        .search-box { 
+            background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 900px; 
+            margin: -80px auto 40px; box-shadow: 0 6px 20px rgba(0,0,0,0.1); 
+        }
         .search-box form { display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; }
-        .search-box input { padding: 12px; border: 1px solid #ccc; border-radius: 8px; flex: 1 1 150px; }
-        .search-box button { padding: 12px 25px; background: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
-        .search-box button:hover { background: #388E3C; }
+        .search-box input { padding: 12px; border: 1px solid #ddd; border-radius: 10px; flex: 1 1 160px; font-size: 1em; }
+        .search-box button { padding: 12px 25px; background: #2E7D32; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .search-box button:hover { background: #1b5e20; }
 
         /* Properties */
-        .properties { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin-top: 30px; }
-        .property { background: white; padding: 15px; border-radius: 12px; width: 100%; max-width: 300px; box-shadow: 0 6px 14px rgba(0,0,0,0.1); transition: 0.3s; }
+        .section { padding: 50px 20px; text-align: center; }
+        .section h3 { font-size: 1.8em; margin-bottom: 25px; color: #2E7D32; }
+        .properties { display: flex; flex-wrap: wrap; justify-content: center; gap: 25px; }
+        .property { background: white; border-radius: 14px; box-shadow: 0 6px 14px rgba(0,0,0,0.1); width: 100%; max-width: 300px; transition: 0.3s; overflow: hidden; }
         .property:hover { transform: translateY(-5px); }
-        .property img { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; }
-        .property h4 { margin: 10px 0; color: #333; }
-        .property p { margin: 5px 0; color: #555; }
-        .property a { display: block; text-align: center; margin-top: 10px; padding: 10px 18px; background: #2196F3; color: white; border-radius: 8px; text-decoration: none; transition: 0.3s; }
+        .property img { width: 100%; height: 190px; object-fit: cover; }
+        .property .content { padding: 15px; text-align: left; }
+        .property h4 { margin: 0 0 8px; color: #222; }
+        .property p { margin: 4px 0; color: #555; font-size: 0.95em; }
+        .property a { display: block; text-align: center; margin-top: 12px; padding: 10px; background: #2196F3; color: white; border-radius: 8px; text-decoration: none; font-weight: bold; transition: 0.3s; }
         .property a:hover { background: #1565C0; }
 
+        /* Features */
+        .features { display: flex; justify-content: center; gap: 30px; flex-wrap: wrap; margin-top: 30px; }
+        .feature { background: white; padding: 25px; border-radius: 12px; width: 280px; box-shadow: 0 6px 14px rgba(0,0,0,0.1); text-align: left; }
+        .feature h4 { margin-bottom: 12px; color: #2196F3; }
+
         /* Footer */
-        footer { background: #333; color: white; text-align: center; padding: 20px; margin-top: 40px; }
+        footer { background: #222; color: #ccc; text-align: center; padding: 25px; margin-top: 50px; }
         footer a { color: #FF9800; text-decoration: none; }
 
-        /* 🔹 Responsive */
+        /* Responsive */
         @media (max-width: 768px) {
             nav { display: none; }
             .menu-toggle { display: block; }
-            .hero h2 { font-size: 2em; }
         }
         @media (max-width: 480px) {
-            .hero { padding: 70px 15px; }
-            .hero h2 { font-size: 1.6em; }
+            .hero h2 { font-size: 2em; }
             .search-box form { flex-direction: column; }
-            .properties { flex-direction: column; align-items: center; }
             .property { width: 90%; }
         }
     </style>
@@ -129,47 +116,47 @@ $properties = $stmt->get_result();
         <a href="signup.php">Sign Up</a>
         <a href="login.php">Login</a>
         <a href="contact.php">Contact</a>
+        <a href="upload_property.php">Upload Property</a>
     </nav>
 </header>
 
-<!-- Mobile Menu -->
+<!-- Mobile Nav -->
 <div class="mobile-nav" id="mobileNav">
     <a href="index.php">Home</a>
     <a href="signup.php">Sign Up</a>
     <a href="login.php">Login</a>
     <a href="contact.php">Contact</a>
+    <a href="upload_property.php">Upload Property</a>
 </div>
 
 <section class="hero">
-    <h2>Find Your Dream Home in Liberia</h2>
-    <p>RentConnect connects renters with landlords across Liberia.  
-       Search homes, apartments, and rentals — all in one place.</p>
-    <div class="buttons">
-        <a href="signup.php" class="signup">Get Started</a>
-        <a href="login.php" class="login">Login</a>
-    </div>
+    
 </section>
+<br>
+<br>
+<!-- Floating Search -->
+<div class="search-box">
+    <form method="get" action="">
+        <input type="text" name="location" placeholder="Enter location" value="<?php echo htmlspecialchars($search_location); ?>">
+        <input type="number" name="min_price" placeholder="Min Price" value="<?php echo $min_price ?: ''; ?>">
+        <input type="number" name="max_price" placeholder="Max Price" value="<?php echo $max_price ?: ''; ?>">
+        <button type="submit">🔍 Search</button>
+    </form>
+</div>
 
 <section class="section">
-    <h3>Search Properties</h3>
-    <div class="search-box">
-        <form method="get" action="">
-            <input type="text" name="location" placeholder="Enter location" value="<?php echo htmlspecialchars($search_location); ?>">
-            <input type="number" name="min_price" placeholder="Min Price" value="<?php echo $min_price ?: ''; ?>">
-            <input type="number" name="max_price" placeholder="Max Price" value="<?php echo $max_price ?: ''; ?>">
-            <button type="submit">Search</button>
-        </form>
-    </div>
-
+    <h3>Latest Properties</h3>
     <div class="properties">
         <?php if ($properties->num_rows > 0): ?>
             <?php while($row = $properties->fetch_assoc()): ?>
                 <div class="property">
                     <img src="uploads/<?php echo htmlspecialchars($row['photo']); ?>" alt="Property">
-                    <h4><?php echo htmlspecialchars($row['title']); ?></h4>
-                    <p>📍 <?php echo htmlspecialchars($row['location']); ?></p>
-                    <p>💲 $<?php echo number_format($row['price']); ?></p>
-                    <a href="login.php">View Details</a>
+                    <div class="content">
+                        <h4><?php echo htmlspecialchars($row['title']); ?></h4>
+                        <p>📍 <?php echo htmlspecialchars($row['location']); ?></p>
+                        <p>💲 $<?php echo number_format($row['price']); ?></p>
+                        <a href="login.php">View Details</a>
+                    </div>
                 </div>
             <?php endwhile; ?>
         <?php else: ?>
@@ -183,18 +170,15 @@ $properties = $stmt->get_result();
     <div class="features">
         <div class="feature">
             <h4>For Renters</h4>
-            <p>Browse verified homes and apartments in Liberia.  
-            Save favorites, send rental requests, and track approvals in your dashboard.</p>
+            <p>Browse verified homes and apartments, save favorites, and send rental requests securely.</p>
         </div>
         <div class="feature">
             <h4>For Landlords</h4>
-            <p>Upload property details with photos, location, and price.  
-            Manage rental requests from potential tenants quickly and easily.</p>
+            <p>Upload property listings with photos and manage rental requests from your dashboard.</p>
         </div>
         <div class="feature">
             <h4>Secure & Easy</h4>
-            <p>Simple signup, secure login, and clear dashboards for both renters and landlords.  
-            Rent smarter with RentConnect.</p>
+            <p>Simple signup, safe login, and streamlined dashboards for renters and landlords.</p>
         </div>
     </div>
 </section>

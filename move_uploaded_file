@@ -1,0 +1,89 @@
+<?php
+session_start();
+include "db.php";
+
+// Only allow landlords
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'landlord') {
+    header("Location: login.php");
+    exit;
+}
+
+$landlord_id = $_SESSION['user_id'];
+$message = "";
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $title = $_POST['title'];
+    $location = $_POST['location'];
+    $price = $_POST['price'];
+    $contact = $_POST['contact'];
+
+    if (isset($_FILES['photo']) && $_FILES['photo']['error'] == 0) {
+        $allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+        $file_type = mime_content_type($_FILES['photo']['tmp_name']);
+
+        if (in_array($file_type, $allowed_types)) {
+            $extension = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
+            $image_name = time() . '_' . uniqid() . '.' . $extension;
+            $target_dir = "uploads/";
+            $target_file = $target_dir . $image_name;
+
+            // Try to move uploaded file
+            if (move_uploaded_file($_FILES['photo']['tmp_name'], $target_file)) {
+                $stmt = $conn->prepare("INSERT INTO properties (title, location, price, contact, photo, owner_id) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("ssdssi", $title, $location, $price, $contact, $image_name, $landlord_id);
+                $stmt->execute();
+                $message = "✅ Property uploaded successfully!";
+            } else {
+                // Show detailed debug info
+                $error_code = $_FILES['photo']['error'];
+                switch ($error_code) {
+                    case 1:
+                        $err = "File too large (upload_max_filesize in php.ini).";
+                        break;
+                    case 2:
+                        $err = "File exceeds MAX_FILE_SIZE from HTML form.";
+                        break;
+                    case 3:
+                        $err = "Partial upload, file not fully uploaded.";
+                        break;
+                    case 4:
+                        $err = "No file uploaded.";
+                        break;
+                    case 6:
+                        $err = "Missing temporary folder.";
+                        break;
+                    case 7:
+                        $err = "Failed to write file to disk.";
+                        break;
+                    default:
+                        $err = "Unknown error code: $error_code";
+                }
+                $message = "❌ Failed to upload image. Error: $err";
+            }
+        } else {
+            $message = "❌ Only PNG, JPG, JPEG, and GIF files are allowed.";
+        }
+    } else {
+        $message = "❌ No file selected or upload error. Error code: " . $_FILES['photo']['error'];
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload Property - Debug</title>
+</head>
+<body>
+    <h2>Upload New Property</h2>
+    <?php if($message) echo "<p>$message</p>"; ?>
+    <form method="post" enctype="multipart/form-data">
+        <input type="text" name="title" placeholder="Property Title" required><br>
+        <input type="text" name="location" placeholder="Location" required><br>
+        <input type="number" step="0.01" name="price" placeholder="Price (USD)" required><br>
+        <input type="text" name="contact" placeholder="Contact Info" required><br>
+        <input type="file" name="photo" accept="image/*" required><br>
+        <button type="submit">Upload Property</button>
+    </form>
+</body>
+</html>
