@@ -39,49 +39,91 @@ $properties = $stmt->get_result();
 <head>
     <meta charset="UTF-8">
     <title>RentConnect - Find Homes in Liberia</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; background: #f8fafc; color: #333; }
-        header { background: linear-gradient(90deg, #4CAF50, #2E7D32); color: white; padding: 20px 50px; display: flex; justify-content: space-between; align-items: center; }
-        header h1 { margin: 0; font-size: 2em; }
-        nav a { color: white; text-decoration: none; margin: 0 15px; font-weight: bold; transition: 0.3s; }
+
+        /* Header */
+        header { background: linear-gradient(90deg, #4CAF50, #2E7D32); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        header h1 { margin: 0; font-size: 1.5em; }
+        nav { display: flex; gap: 15px; }
+        nav a { color: white; text-decoration: none; font-weight: bold; transition: 0.3s; }
         nav a:hover { text-decoration: underline; }
-        .hero { background: url('images/home-bg.jpg') no-repeat center center/cover; color: white; text-align: center; padding: 100px 20px; position: relative; }
-        .hero::after { content: ""; position: absolute; inset: 0; background: rgba(0,0,0,0.4); }
+        
+        /* Hamburger Button */
+        .menu-toggle { display: none; font-size: 24px; cursor: pointer; }
+        .mobile-nav { display: none; flex-direction: column; background: #2E7D32; padding: 10px; }
+        .mobile-nav a { padding: 10px; color: white; border-top: 1px solid rgba(255,255,255,0.2); }
+
+        /* Hero Section */
+        .hero { 
+            background: url('images/home-bg.jpg') no-repeat center center/cover; 
+            color: white; 
+            text-align: center; 
+            padding: 90px 20px; 
+            position: relative; 
+        }
+        .hero::after { content: ""; position: absolute; inset: 0; background: rgba(0,0,0,0.5); }
         .hero h2, .hero p, .hero .buttons { position: relative; z-index: 2; }
-        .hero h2 { font-size: 2.8em; margin-bottom: 15px; }
+        .hero h2 { font-size: 2.5em; margin-bottom: 15px; }
         .hero p { font-size: 1.2em; max-width: 600px; margin: auto; }
-        .hero .buttons { margin-top: 30px; }
-        .hero a { padding: 12px 25px; margin: 0 10px; border-radius: 30px; color: white; text-decoration: none; font-size: 1.1em; transition: 0.3s; }
+        .hero .buttons { margin-top: 25px; display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; }
+        .hero a { padding: 12px 25px; border-radius: 30px; color: white; text-decoration: none; font-size: 1em; transition: 0.3s; }
         .hero a.signup { background: #FF9800; }
         .hero a.login { background: #2196F3; }
         .hero a:hover { opacity: 0.9; }
-        .section { padding: 60px 40px; text-align: center; }
-        .section h3 { font-size: 2em; margin-bottom: 30px; color: #2E7D32; }
-        .features { display: flex; justify-content: center; gap: 40px; flex-wrap: wrap; }
-        .feature { background: white; padding: 25px; border-radius: 12px; width: 300px; box-shadow: 0 6px 14px rgba(0,0,0,0.1); transition: 0.3s; }
+
+        /* Sections */
+        .section { padding: 50px 20px; text-align: center; }
+        .section h3 { font-size: 1.8em; margin-bottom: 30px; color: #2E7D32; }
+
+        /* Features */
+        .features { display: flex; justify-content: center; gap: 30px; flex-wrap: wrap; }
+        .feature { background: white; padding: 20px; border-radius: 12px; width: 300px; box-shadow: 0 6px 14px rgba(0,0,0,0.1); transition: 0.3s; }
         .feature:hover { transform: translateY(-5px); }
         .feature h4 { margin-bottom: 15px; color: #2196F3; }
-        .search-box { background: white; padding: 25px; border-radius: 12px; width: 80%; margin: 30px auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+        /* Search */
+        .search-box { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 800px; margin: 30px auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .search-box form { display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; }
-        .search-box input { padding: 12px; border: 1px solid #ccc; border-radius: 8px; width: 200px; }
+        .search-box input { padding: 12px; border: 1px solid #ccc; border-radius: 8px; flex: 1 1 150px; }
         .search-box button { padding: 12px 25px; background: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
         .search-box button:hover { background: #388E3C; }
-        .properties { display: flex; flex-wrap: wrap; justify-content: center; gap: 25px; margin-top: 30px; }
-        .property { background: white; padding: 15px; border-radius: 12px; width: 280px; box-shadow: 0 6px 14px rgba(0,0,0,0.1); transition: 0.3s; }
+
+        /* Properties */
+        .properties { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin-top: 30px; }
+        .property { background: white; padding: 15px; border-radius: 12px; width: 100%; max-width: 300px; box-shadow: 0 6px 14px rgba(0,0,0,0.1); transition: 0.3s; }
         .property:hover { transform: translateY(-5px); }
         .property img { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; }
         .property h4 { margin: 10px 0; color: #333; }
         .property p { margin: 5px 0; color: #555; }
-        .property a { display: inline-block; margin-top: 10px; padding: 10px 18px; background: #2196F3; color: white; border-radius: 8px; text-decoration: none; transition: 0.3s; }
+        .property a { display: block; text-align: center; margin-top: 10px; padding: 10px 18px; background: #2196F3; color: white; border-radius: 8px; text-decoration: none; transition: 0.3s; }
         .property a:hover { background: #1565C0; }
+
+        /* Footer */
         footer { background: #333; color: white; text-align: center; padding: 20px; margin-top: 40px; }
         footer a { color: #FF9800; text-decoration: none; }
+
+        /* 🔹 Responsive */
+        @media (max-width: 768px) {
+            nav { display: none; }
+            .menu-toggle { display: block; }
+            .hero h2 { font-size: 2em; }
+        }
+        @media (max-width: 480px) {
+            .hero { padding: 70px 15px; }
+            .hero h2 { font-size: 1.6em; }
+            .search-box form { flex-direction: column; }
+            .properties { flex-direction: column; align-items: center; }
+            .property { width: 90%; }
+        }
     </style>
 </head>
 <body>
 
 <header>
     <h1>🏠 RentConnect</h1>
+    <span class="menu-toggle" onclick="toggleMenu()">☰</span>
     <nav>
         <a href="index.php">Home</a>
         <a href="signup.php">Sign Up</a>
@@ -89,6 +131,14 @@ $properties = $stmt->get_result();
         <a href="contact.php">Contact</a>
     </nav>
 </header>
+
+<!-- Mobile Menu -->
+<div class="mobile-nav" id="mobileNav">
+    <a href="index.php">Home</a>
+    <a href="signup.php">Sign Up</a>
+    <a href="login.php">Login</a>
+    <a href="contact.php">Contact</a>
+</div>
 
 <section class="hero">
     <h2>Find Your Dream Home in Liberia</h2>
@@ -152,6 +202,13 @@ $properties = $stmt->get_result();
 <footer>
     <p>&copy; <?php echo date("Y"); ?> RentConnect Liberia. All rights reserved. | <a href="contact.php">Contact Us</a></p>
 </footer>
+
+<script>
+function toggleMenu() {
+    var menu = document.getElementById("mobileNav");
+    menu.style.display = (menu.style.display === "flex") ? "none" : "flex";
+}
+</script>
 
 </body>
 </html>
