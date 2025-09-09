@@ -2,8 +2,8 @@
 session_start();
 include "db.php";
 
-// Ensure landlord is logged in
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'landlord') {
+// Ensure landlord access
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'landlord') {
     header("Location: login.php");
     exit;
 }
@@ -11,90 +11,83 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'landlord') {
 $landlord_id = $_SESSION['user_id'];
 $message = "";
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $title = $_POST['title'];
     $location = $_POST['location'];
     $price = $_POST['price'];
     $contact = $_POST['contact'];
-    $bedrooms = $_POST['bedrooms'];
-    $bathrooms = $_POST['bathrooms'];
-    $description = $_POST['description'];
+    $bedrooms = $_POST['bedrooms'] ?? 0;
+    $bathrooms = $_POST['bathrooms'] ?? 0;
+    $description = $_POST['description'] ?? "";
 
-    // Insert property first
-    $stmt = $conn->prepare("INSERT INTO properties 
-        (title, location, price, contact, bedrooms, bathrooms, description, owner_id) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("ssdsiisi", 
-        $title, 
-        $location, 
-        $price, 
-        $contact, 
-        $bedrooms, 
-        $bathrooms, 
-        $description, 
-        $landlord_id
-    );
+    // Insert property
+    $stmt = $conn->prepare("INSERT INTO properties (owner_id, title, location, price, contact, bedrooms, bathrooms, description, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+    $stmt->bind_param("issdsdds", $landlord_id, $title, $location, $price, $contact, $bedrooms, $bathrooms, $description);
 
     if ($stmt->execute()) {
-        $property_id = $stmt->insert_id; // get inserted property ID
+        $property_id = $stmt->insert_id;
 
-        // Handle multiple image uploads
+        // Handle images
         if (!empty($_FILES['photos']['name'][0])) {
-            foreach ($_FILES['photos']['tmp_name'] as $key => $tmp_name) {
-                if ($_FILES['photos']['error'][$key] === 0) {
-                    $imageData = file_get_contents($tmp_name);
-
+            $total_files = count($_FILES['photos']['name']);
+            for ($i = 0; $i < $total_files; $i++) {
+                if ($_FILES['photos']['error'][$i] == 0) {
+                    $imageData = file_get_contents($_FILES['photos']['tmp_name'][$i]);
                     $img_stmt = $conn->prepare("INSERT INTO property_images (property_id, image) VALUES (?, ?)");
-                    $img_stmt->bind_param("ib", $property_id, $imageData);
-                    $img_stmt->send_long_data(1, $imageData); // handle BLOB
+                    $img_stmt->bind_param("ib", $property_id, $null);
+                    $img_stmt->send_long_data(1, $imageData);
                     $img_stmt->execute();
-                    $img_stmt->close();
                 }
             }
         }
 
-        $message = "✅ Property and photos uploaded successfully!";
+        $message = "✅ Property uploaded successfully!";
     } else {
-        $message = "❌ Database error: " . $stmt->error;
+        $message = "❌ Failed to upload property: " . $stmt->error;
     }
 }
 ?>
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Upload Property - RentConnect</title>
-    <style>
-        body { font-family: Arial; background:#f4f6f9; display:flex; justify-content:center; align-items:center; height:100vh; }
-        .form-box { background:white; padding:30px; border-radius:10px; width:450px; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
-        h2 { text-align:center; color:#4CAF50; }
-        input, textarea { width:100%; padding:10px; margin:10px 0; border-radius:5px; border:1px solid #ccc; }
-        textarea { height:80px; resize:none; }
-        button { width:100%; padding:12px; background:#4CAF50; color:white; border:none; border-radius:5px; cursor:pointer; font-size:1.1em; }
-        button:hover { background:#43a047; }
-        .message { text-align:center; color:red; }
-        a.back { display:block; margin-top:10px; text-align:center; text-decoration:none; color:#2196F3; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Upload Property - RentConnect</title>
+<style>
+body { font-family: Arial, sans-serif; background:#f7f9f7; margin:0; padding:0; }
+header { background:#2e7d32; color:white; text-align:center; padding:20px; font-size:1.5em; }
+.container { max-width:600px; margin:30px auto; padding:20px; background:white; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
+h2 { text-align:center; color:#2e7d32; margin-bottom:20px; }
+input, textarea, button { width:100%; padding:10px; margin:10px 0; border-radius:6px; border:1px solid #ccc; font-size:1em; }
+textarea { resize:none; height:100px; }
+button { background:#2e7d32; color:white; border:none; cursor:pointer; font-size:1.1em; }
+button:hover { background:#1b5e20; }
+.message { text-align:center; color:green; font-weight:bold; margin-bottom:15px; }
+a.back { display:block; text-align:center; margin-top:15px; color:#2e7d32; text-decoration:none; font-weight:bold; }
+</style>
 </head>
 <body>
-    <div class="form-box">
-        <h2>Upload New Property</h2>
-        <?php if($message) echo "<p class='message'>$message</p>"; ?>
-        <form method="post" enctype="multipart/form-data">
-            <input type="text" name="title" placeholder="Property Title" required>
-            <input type="text" name="location" placeholder="Location" required>
-            <input type="number" step="0.01" name="price" placeholder="Price (USD)" required>
-            <input type="text" name="contact" placeholder="Contact Info" required>
-            <input type="number" name="bedrooms" placeholder="Number of Bedrooms">
-            <input type="number" name="bathrooms" placeholder="Number of Bathrooms">
-            <textarea name="description" placeholder="Property Description"></textarea>
-            
-            <!-- Multiple images -->
-            <label>Upload Property Photos:</label>
-            <input type="file" name="photos[]" multiple accept="image/*" required>
 
-            <button type="submit">Upload Property</button>
-        </form>
-        <a href="landlord_dashboard.php" class="back">⬅ Back to Dashboard</a>
-    </div>
+<header>Upload Property</header>
+<div class="container">
+    <?php if($message) echo "<p class='message'>$message</p>"; ?>
+
+    <form method="post" enctype="multipart/form-data">
+        <input type="text" name="title" placeholder="Property Title" required>
+        <input type="text" name="location" placeholder="Location" required>
+        <input type="number" step="0.01" name="price" placeholder="Price" required>
+        <input type="text" name="contact" placeholder="Contact Info" required>
+        <input type="number" name="bedrooms" placeholder="Bedrooms">
+        <input type="number" name="bathrooms" placeholder="Bathrooms">
+        <textarea name="description" placeholder="Property Description"></textarea>
+        <input type="file" name="photos[]" multiple accept="image/*">
+        <button type="submit">Upload Property</button>
+    </form>
+
+    <a href="landlord_dashboard.php" class="back">⬅ Back to Dashboard</a>
+</div>
+
 </body>
 </html>
