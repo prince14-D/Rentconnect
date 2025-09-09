@@ -28,19 +28,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($stmt->execute()) {
         $property_id = $stmt->insert_id;
 
-        // Handle images
-        if (!empty($_FILES['photos']['name'][0])) {
-            $total_files = count($_FILES['photos']['name']);
-            for ($i = 0; $i < $total_files; $i++) {
-                if ($_FILES['photos']['error'][$i] == 0) {
-                    $imageData = file_get_contents($_FILES['photos']['tmp_name'][$i]);
-                    $img_stmt = $conn->prepare("INSERT INTO property_images (property_id, image) VALUES (?, ?)");
-                    $img_stmt->bind_param("ib", $property_id, $null);
-                    $img_stmt->send_long_data(1, $imageData);
-                    $img_stmt->execute();
-                }
-            }
+       // Handle images
+if (!empty($_FILES['photos']['name'][0])) {
+    $total_files = count($_FILES['photos']['name']);
+
+    for ($i = 0; $i < $total_files; $i++) {
+        if ($_FILES['photos']['error'][$i] == 0) {
+            $imageData = file_get_contents($_FILES['photos']['tmp_name'][$i]);
+            $mimeType  = mime_content_type($_FILES['photos']['tmp_name'][$i]);
+
+            // prepare insert
+            $img_stmt = $conn->prepare("INSERT INTO property_images (property_id, image, mime_type) VALUES (?, ?, ?)");
+            
+            // second param must be a string for blob
+            $img_stmt->bind_param("iss", $property_id, $null, $mimeType);
+            $null = NULL;
+            $img_stmt->send_long_data(1, $imageData);
+
+            $img_stmt->execute();
         }
+    }
+}
 
         $message = "✅ Property uploaded successfully!";
     } else {

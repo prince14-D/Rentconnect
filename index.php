@@ -276,6 +276,84 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 </script>
 
+<style>
+.properties {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.property {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.carousel {
+    position: relative;
+    width: 100%;
+    height: 220px;
+    overflow: hidden;
+}
+
+.carousel img {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    display: none;
+    transition: opacity 0.5s ease-in-out;
+    border-radius: 10px 10px 0 0;
+}
+
+.carousel img.active {
+    display: block;
+}
+
+.carousel .prev,
+.carousel .next {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0,0,0,0.5);
+    color: white;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    border-radius: 50%;
+}
+
+.carousel .prev { left: 10px; }
+.carousel .next { right: 10px; }
+
+.content {
+    padding: 15px;
+}
+.content h4 {
+    margin: 0 0 10px;
+    color: #2e7d32;
+}
+.content p {
+    margin: 5px 0;
+    color: #444;
+}
+.content a {
+    display: inline-block;
+    margin-top: 10px;
+    text-decoration: none;
+    background: #2e7d32;
+    color: white;
+    padding: 8px 15px;
+    border-radius: 6px;
+    transition: background 0.3s;
+}
+.content a:hover {
+    background: #256428;
+}
+</style>
+
+
 
 <section class="section">
     <h3>Why Use RentConnect?</h3>

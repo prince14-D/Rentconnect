@@ -1,25 +1,20 @@
 <?php
 include "db.php";
 
-if (!isset($_GET['img_id'])) {
-    die('No image ID provided.');
-}
+if (isset($_GET['img_id'])) {
+    $img_id = intval($_GET['img_id']);
 
-$img_id = intval($_GET['img_id']);
-$stmt = $conn->prepare("SELECT image_path FROM property_images WHERE id=?");
-$stmt->bind_param("i", $img_id);
-$stmt->execute();
-$stmt->bind_result($path);
-$stmt->fetch();
+    $stmt = $conn->prepare("SELECT image, mime_type FROM property_images WHERE id=?");
+    $stmt->bind_param("i", $img_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
-if ($path && file_exists($path)) {
-    $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-    $mime = ($ext === 'png') ? 'image/png' : 'image/jpeg';
-    header("Content-Type: $mime");
-    readfile($path);
-} else {
-    // fallback image
-    header("Content-Type: image/png");
-    readfile("images/no-image.png");
+    if ($row = $result->fetch_assoc()) {
+        header("Content-Type: " . $row['mime_type']);
+        echo $row['image'];
+    } else {
+        header("Content-Type: image/png");
+        readfile("images/no-image.png");
+    }
 }
 ?>
