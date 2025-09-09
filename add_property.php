@@ -13,50 +13,59 @@ $message = "";
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $title = $_POST['title'];
-    $location = $_POST['location'];  // ✅ corrected
+    $location = $_POST['location'];
     $price = $_POST['price'];
     $contact = $_POST['contact'];
     $bedrooms = $_POST['bedrooms'];
     $bathrooms = $_POST['bathrooms'];
     $description = $_POST['description'];
 
-    if (isset($_FILES['photo']) && $_FILES['photo']['error'] == 0) {
-        // store image as BLOB
-        $imageData = file_get_contents($_FILES['photo']['tmp_name']);
+    // Insert property first
+    $stmt = $conn->prepare("INSERT INTO properties 
+        (title, location, price, contact, bedrooms, bathrooms, description, owner_id) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("ssdsiisi", 
+        $title, 
+        $location, 
+        $price, 
+        $contact, 
+        $bedrooms, 
+        $bathrooms, 
+        $description, 
+        $landlord_id
+    );
 
-        $stmt = $conn->prepare("INSERT INTO properties 
-            (title, location, price, contact, bedrooms, bathrooms, description, photo_blob, owner_id) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssdsiissi", 
-            $title, 
-            $location,   // ✅ fixed
-            $price, 
-            $contact, 
-            $bedrooms, 
-            $bathrooms, 
-            $description, 
-            $imageData, 
-            $landlord_id
-        );
+    if ($stmt->execute()) {
+        $property_id = $stmt->insert_id; // get inserted property ID
 
-        if ($stmt->execute()) {
-            $message = "✅ Property uploaded successfully!";
-        } else {
-            $message = "❌ Database error: " . $stmt->error;
+        // Handle multiple image uploads
+        if (!empty($_FILES['photos']['name'][0])) {
+            foreach ($_FILES['photos']['tmp_name'] as $key => $tmp_name) {
+                if ($_FILES['photos']['error'][$key] === 0) {
+                    $imageData = file_get_contents($tmp_name);
+
+                    $img_stmt = $conn->prepare("INSERT INTO property_images (property_id, image) VALUES (?, ?)");
+                    $img_stmt->bind_param("ib", $property_id, $imageData);
+                    $img_stmt->send_long_data(1, $imageData); // handle BLOB
+                    $img_stmt->execute();
+                    $img_stmt->close();
+                }
+            }
         }
+
+        $message = "✅ Property and photos uploaded successfully!";
     } else {
-        $message = "❌ Please upload an image.";
+        $message = "❌ Database error: " . $stmt->error;
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html>
 <head>
     <title>Upload Property - RentConnect</title>
     <style>
         body { font-family: Arial; background:#f4f6f9; display:flex; justify-content:center; align-items:center; height:100vh; }
-        .form-box { background:white; padding:30px; border-radius:10px; width:420px; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+        .form-box { background:white; padding:30px; border-radius:10px; width:450px; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
         h2 { text-align:center; color:#4CAF50; }
         input, textarea { width:100%; padding:10px; margin:10px 0; border-radius:5px; border:1px solid #ccc; }
         textarea { height:80px; resize:none; }
@@ -78,7 +87,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <input type="number" name="bedrooms" placeholder="Number of Bedrooms">
             <input type="number" name="bathrooms" placeholder="Number of Bathrooms">
             <textarea name="description" placeholder="Property Description"></textarea>
-            <input type="file" name="photo" accept="image/*" required>
+            
+            <!-- Multiple images -->
+            <label>Upload Property Photos:</label>
+            <input type="file" name="photos[]" multiple accept="image/*" required>
+
             <button type="submit">Upload Property</button>
         </form>
         <a href="landlord_dashboard.php" class="back">⬅ Back to Dashboard</a>
