@@ -13,13 +13,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $stmt->execute();
     $result = $stmt->get_result();
 
-    if ($result->num_rows == 1) {
+     if ($result->num_rows == 1) {
         $row = $result->fetch_assoc();
         if (password_verify($password, $row['password'])) {
             $_SESSION['user_id'] = $row['id'];
             $_SESSION['role'] = $row['role'];
-            header("Location: " . ($row['role'] == 'landlord' ? "landlord_dashboard.php" : "renter_dashboard.php"));
+
+            // Redirect based on role
+            if ($row['role'] === 'admin') {
+                header("Location: admin/index.php");
+            } elseif ($row['role'] === 'landlord') {
+                header("Location: landlord_dashboard.php");
+            } else {
+                header("Location: renter_dashboard.php");
+            }
             exit;
+
         } else {
             $message = "Invalid password.";
         }
@@ -136,3 +145,4 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </div>
 </body>
 </html>
+
