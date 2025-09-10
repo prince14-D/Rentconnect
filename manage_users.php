@@ -2,91 +2,87 @@
 session_start();
 include "../db.php";
 
+// Ensure admin access
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header("Location: ../login.php");
     exit;
 }
 
-// Handle suspend/activate
-if (isset($_GET['toggle'])) {
-    $uid = intval($_GET['toggle']);
-    $user = $conn->query("SELECT active FROM users WHERE id=$uid")->fetch_assoc();
-    $new_status = $user['active'] ? 0 : 1;
-    $conn->query("UPDATE users SET active=$new_status WHERE id=$uid");
+// Handle block/unblock/delete
+if (isset($_GET['block'])) {
+    $id = intval($_GET['block']);
+    $conn->query("UPDATE users SET status='blocked' WHERE id=$id");
     header("Location: manage_users.php");
     exit;
 }
-
-// Handle role change
-if (isset($_POST['change_role'])) {
-    $uid = intval($_POST['user_id']);
-    $new_role = $_POST['role'];
-    $conn->query("UPDATE users SET role='$new_role' WHERE id=$uid");
+if (isset($_GET['unblock'])) {
+    $id = intval($_GET['unblock']);
+    $conn->query("UPDATE users SET status='active' WHERE id=$id");
+    header("Location: manage_users.php");
+    exit;
+}
+if (isset($_GET['delete'])) {
+    $id = intval($_GET['delete']);
+    $conn->query("DELETE FROM users WHERE id=$id");
     header("Location: manage_users.php");
     exit;
 }
 
 // Fetch all users
-$users = $conn->query("SELECT id, name, email, role, active FROM users ORDER BY id DESC");
+$users = $conn->query("SELECT id, name, email, role, status, created_at FROM users ORDER BY created_at DESC");
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<title>Manage Users - RentConnect Admin</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-body { margin:0; font-family:Arial,sans-serif; background:#f4f6f9; }
-header { background:#2E7D32; color:white; padding:15px; text-align:center; font-size:1.3em; }
-table { width:90%; margin:20px auto; border-collapse:collapse; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
-th, td { padding:12px; text-align:center; border-bottom:1px solid #ddd; }
-th { background:#2E7D32; color:white; }
-a.btn { padding:6px 12px; text-decoration:none; border-radius:6px; font-size:0.9em; }
-.btn-suspend { background:#e53935; color:white; }
-.btn-activate { background:#43a047; color:white; }
-form { display:inline; }
-select { padding:4px; border-radius:6px; }
-button { padding:5px 10px; background:#2E7D32; color:white; border:none; border-radius:6px; cursor:pointer; }
-</style>
+    <title>Manage Users - Admin</title>
+    <style>
+        body { font-family:Arial,sans-serif; background:#f4f6f9; margin:0; padding:20px; }
+        h2 { color:#2E7D32; }
+        table { width:100%; border-collapse:collapse; margin-top:20px; }
+        th, td { border:1px solid #ddd; padding:10px; text-align:center; }
+        th { background:#f0f0f0; }
+        a.button { padding:5px 10px; border-radius:5px; text-decoration:none; color:white; font-size:0.9em; margin:2px; }
+        .block { background:#f44336; }
+        .unblock { background:#4CAF50; }
+        .delete { background:#555; }
+        .back { margin-top:20px; display:inline-block; color:#2196F3; text-decoration:none; }
+    </style>
 </head>
 <body>
-<header>👥 Manage Users</header>
-
+<h2>Manage Users</h2>
+<?php if($users->num_rows > 0): ?>
 <table>
-    <tr>
-        <th>ID</th>
-        <th>Name</th>
-        <th>Email</th>
-        <th>Role</th>
-        <th>Status</th>
-        <th>Actions</th>
-    </tr>
-    <?php while($u = $users->fetch_assoc()): ?>
-    <tr>
-        <td><?php echo $u['id']; ?></td>
-        <td><?php echo htmlspecialchars($u['name']); ?></td>
-        <td><?php echo htmlspecialchars($u['email']); ?></td>
-        <td>
-            <form method="post" style="margin:0;">
-                <input type="hidden" name="user_id" value="<?php echo $u['id']; ?>">
-                <select name="role">
-                    <option value="renter" <?php if($u['role']=='renter') echo 'selected'; ?>>Renter</option>
-                    <option value="landlord" <?php if($u['role']=='landlord') echo 'selected'; ?>>Landlord</option>
-                    <option value="admin" <?php if($u['role']=='admin') echo 'selected'; ?>>Admin</option>
-                </select>
-                <button type="submit" name="change_role">Save</button>
-            </form>
-        </td>
-        <td><?php echo $u['active'] ? '✅ Active' : '❌ Suspended'; ?></td>
-        <td>
-            <a class="btn <?php echo $u['active'] ? 'btn-suspend':'btn-activate'; ?>" 
-               href="?toggle=<?php echo $u['id']; ?>">
-               <?php echo $u['active'] ? 'Suspend' : 'Activate'; ?>
-            </a>
-        </td>
-    </tr>
-    <?php endwhile; ?>
+<tr>
+    <th>ID</th>
+    <th>Name</th>
+    <th>Email</th>
+    <th>Role</th>
+    <th>Status</th>
+    <th>Created At</th>
+    <th>Actions</th>
+</tr>
+<?php while($user = $users->fetch_assoc()): ?>
+<tr>
+    <td><?php echo $user['id']; ?></td>
+    <td><?php echo htmlspecialchars($user['name']); ?></td>
+    <td><?php echo htmlspecialchars($user['email']); ?></td>
+    <td><?php echo ucfirst($user['role']); ?></td>
+    <td><?php echo ucfirst($user['status'] ?? 'active'); ?></td>
+    <td><?php echo $user['created_at']; ?></td>
+    <td>
+        <?php if($user['status'] !== 'blocked'): ?>
+            <a href="?block=<?php echo $user['id']; ?>" class="button block">Block</a>
+        <?php else: ?>
+            <a href="?unblock=<?php echo $user['id']; ?>" class="button unblock">Unblock</a>
+        <?php endif; ?>
+        <a href="?delete=<?php echo $user['id']; ?>" class="button delete" onclick="return confirm('Delete this user?')">Delete</a>
+    </td>
+</tr>
+<?php endwhile; ?>
 </table>
-
+<?php else: ?>
+<p>No users found.</p>
+<?php endif; ?>
+<a href="admin_dashboard.php" class="back">⬅ Back to Dashboard</a>
 </body>
 </html>

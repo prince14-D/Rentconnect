@@ -21,7 +21,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             // Redirect based on role
             if ($row['role'] === 'admin') {
-                header("Location: admin/index.php");
+                header("Location: admin_dashboard.php");
             } elseif ($row['role'] === 'landlord') {
                 header("Location: landlord_dashboard.php");
             } else {
@@ -36,6 +36,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $message = "No account found with that email.";
     }
 }
+
+
 ?>
 
 <!DOCTYPE html>

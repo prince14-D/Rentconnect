@@ -7,105 +7,85 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     exit;
 }
 
-/* -------------------------
-   Handle Approve / Reject
-------------------------- */
+// Approve / Decline / Delete
 if (isset($_GET['approve'])) {
-    $pid = intval($_GET['approve']);
-    $conn->query("UPDATE properties SET status='approved' WHERE id=$pid");
+    $id = intval($_GET['approve']);
+    $conn->query("UPDATE properties SET status='approved' WHERE id=$id");
     header("Location: manage_properties.php");
     exit;
 }
-if (isset($_GET['reject'])) {
-    $pid = intval($_GET['reject']);
-    $conn->query("UPDATE properties SET status='rejected' WHERE id=$pid");
+if (isset($_GET['decline'])) {
+    $id = intval($_GET['decline']);
+    $conn->query("UPDATE properties SET status='declined' WHERE id=$id");
     header("Location: manage_properties.php");
     exit;
 }
-
-/* -------------------------
-   Handle Delete Property
-------------------------- */
 if (isset($_GET['delete'])) {
-    $pid = intval($_GET['delete']);
-    $conn->query("DELETE FROM properties WHERE id=$pid");
+    $id = intval($_GET['delete']);
+    $conn->query("DELETE FROM properties WHERE id=$id");
     header("Location: manage_properties.php");
     exit;
 }
 
-/* -------------------------
-   Fetch all properties
-------------------------- */
-$sql = "
-    SELECT p.id, p.title, p.price, p.location, p.status, p.created_at,
-           u.name AS landlord_name, u.email AS landlord_email
+// Fetch properties
+$properties = $conn->query("
+    SELECT p.id, p.title, p.location, p.price, p.status, u.name AS owner
     FROM properties p
     JOIN users u ON p.owner_id = u.id
     ORDER BY p.created_at DESC
-";
-$properties = $conn->query($sql);
+");
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<title>Manage Properties - RentConnect Admin</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manage Properties - Admin</title>
 <style>
-body { margin:0; font-family:Arial,sans-serif; background:#f4f6f9; }
-header { background:#2E7D32; color:white; padding:15px; text-align:center; font-size:1.3em; }
-table { width:95%; margin:20px auto; border-collapse:collapse; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
-th, td { padding:12px; text-align:center; border-bottom:1px solid #ddd; }
-th { background:#2E7D32; color:white; }
-a.btn { padding:6px 12px; text-decoration:none; border-radius:6px; font-size:0.9em; margin:2px; display:inline-block; }
-.btn-approve { background:#43a047; color:white; }
-.btn-reject { background:#e53935; color:white; }
-.btn-delete { background:#b71c1c; color:white; }
+body { font-family:Arial,sans-serif; background:#f4f6f9; margin:0; padding:20px; }
+h2 { color:#2E7D32; }
+table { width:100%; border-collapse:collapse; margin-top:20px; }
+th, td { border:1px solid #ddd; padding:10px; text-align:center; }
+th { background:#f0f0f0; }
+a.button { padding:5px 10px; border-radius:5px; text-decoration:none; color:white; font-size:0.9em; margin:2px; }
+.approve { background:#4CAF50; }
+.decline { background:#f44336; }
+.delete { background:#555; }
+.back { margin-top:20px; display:inline-block; color:#2196F3; text-decoration:none; }
 </style>
 </head>
 <body>
-<header>🏠 Manage Properties</header>
-
+<h2>Manage Properties</h2>
+<?php if($properties->num_rows > 0): ?>
 <table>
-    <tr>
-        <th>ID</th>
-        <th>Title</th>
-        <th>Location</th>
-        <th>Price</th>
-        <th>Status</th>
-        <th>Landlord</th>
-        <th>Actions</th>
-    </tr>
-    <?php while($p = $properties->fetch_assoc()): ?>
-    <tr>
-        <td><?php echo $p['id']; ?></td>
-        <td><?php echo htmlspecialchars($p['title']); ?></td>
-        <td><?php echo htmlspecialchars($p['location']); ?></td>
-        <td>$<?php echo number_format($p['price']); ?></td>
-        <td>
-            <?php if ($p['status'] == 'approved'): ?>
-                ✅ Approved
-            <?php elseif ($p['status'] == 'rejected'): ?>
-                ❌ Rejected
-            <?php else: ?>
-                ⏳ Pending
-            <?php endif; ?>
-        </td>
-        <td><?php echo htmlspecialchars($p['landlord_name']); ?><br>
-            <small><?php echo htmlspecialchars($p['landlord_email']); ?></small>
-        </td>
-        <td>
-            <?php if ($p['status'] != 'approved'): ?>
-                <a href="?approve=<?php echo $p['id']; ?>" class="btn btn-approve">Approve</a>
-            <?php endif; ?>
-            <?php if ($p['status'] != 'rejected'): ?>
-                <a href="?reject=<?php echo $p['id']; ?>" class="btn btn-reject">Reject</a>
-            <?php endif; ?>
-            <a href="?delete=<?php echo $p['id']; ?>" class="btn btn-delete" onclick="return confirm('Delete this property?')">Delete</a>
-        </td>
-    </tr>
-    <?php endwhile; ?>
+<tr>
+<th>ID</th>
+<th>Title</th>
+<th>Location</th>
+<th>Price</th>
+<th>Owner</th>
+<th>Status</th>
+<th>Actions</th>
+</tr>
+<?php while($prop = $properties->fetch_assoc()): ?>
+<tr>
+<td><?php echo $prop['id']; ?></td>
+<td><?php echo htmlspecialchars($prop['title']); ?></td>
+<td><?php echo htmlspecialchars($prop['location']); ?></td>
+<td>$<?php echo number_format($prop['price']); ?></td>
+<td><?php echo htmlspecialchars($prop['owner']); ?></td>
+<td><?php echo ucfirst($prop['status']); ?></td>
+<td>
+<?php if($prop['status'] == 'pending'): ?>
+<a href="?approve=<?php echo $prop['id']; ?>" class="button approve">Approve</a>
+<a href="?decline=<?php echo $prop['id']; ?>" class="button decline">Decline</a>
+<?php endif; ?>
+<a href="?delete=<?php echo $prop['id']; ?>" class="button delete" onclick="return confirm('Delete this property?')">Delete</a>
+</td>
+</tr>
+<?php endwhile; ?>
 </table>
-
+<?php else: ?>
+<p>No properties found.</p>
+<?php endif; ?>
+<a href="admin_dashboard.php" class="back">⬅ Back to Dashboard</a>
 </body>
 </html>
