@@ -36,13 +36,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $message = "No account found with that email.";
     }
 }
-
-
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - RentConnect</title>
     <style>
         body {
@@ -52,17 +52,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             align-items: center;
             justify-content: center;
             height: 100vh;
+            margin: 0;
+            padding: 15px;
         }
         .login-box {
             background: white;
             padding: 30px;
-            width: 400px;
+            width: 100%;
+            max-width: 400px;
             border-radius: 10px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         .login-box h2 {
             text-align: center;
             color: #4CAF50;
+            margin-bottom: 20px;
         }
         .login-box form {
             display: flex;
@@ -71,11 +75,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         .login-box label {
             margin: 10px 0 5px;
             font-weight: bold;
+            font-size: 0.95em;
         }
         .login-box input {
-            padding: 10px;
-            border-radius: 5px;
+            padding: 12px;
+            border-radius: 6px;
             border: 1px solid #ccc;
+            font-size: 1em;
         }
         .login-box button {
             margin-top: 20px;
@@ -83,9 +89,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             background: #4CAF50;
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 6px;
             font-size: 1.1em;
             cursor: pointer;
+            transition: background 0.3s ease;
         }
         .login-box button:hover {
             background: #43a047;
@@ -98,10 +105,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         .alt {
             margin-top: 15px;
             text-align: center;
+            font-size: 0.95em;
         }
         .alt a {
             color: #2196F3;
             text-decoration: none;
+            font-weight: bold;
+        }
+        .alt a:hover {
+            text-decoration: underline;
         }
         .back-home {
             margin-top: 20px;
@@ -112,11 +124,32 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             padding: 10px 20px;
             background: #2196F3;
             color: white;
-            border-radius: 5px;
+            border-radius: 6px;
             text-decoration: none;
+            transition: background 0.3s ease;
         }
         .back-home a:hover {
             background: #1976D2;
+        }
+
+        /* ✅ Responsive Styles */
+        @media (max-width: 600px) {
+            .login-box {
+                padding: 20px;
+                width: 100%;
+                max-width: 95%;
+            }
+            .login-box h2 {
+                font-size: 1.5em;
+            }
+            .login-box input, .login-box button {
+                font-size: 1em;
+                padding: 10px;
+            }
+            .back-home a {
+                font-size: 0.95em;
+                padding: 8px 16px;
+            }
         }
     </style>
 </head>
@@ -147,4 +180,3 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </div>
 </body>
 </html>
-

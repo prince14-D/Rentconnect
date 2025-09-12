@@ -34,8 +34,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Up - RentConnect</title>
     <style>
         body {
@@ -45,17 +47,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             align-items: center;
             justify-content: center;
             height: 100vh;
+            margin: 0;
+            padding: 15px;
         }
         .signup-box {
             background: white;
             padding: 30px;
-            width: 400px;
+            width: 100%;
+            max-width: 400px;
             border-radius: 10px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         .signup-box h2 {
             text-align: center;
             color: #4CAF50;
+            margin-bottom: 20px;
         }
         .signup-box form {
             display: flex;
@@ -64,11 +70,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         .signup-box label {
             margin: 10px 0 5px;
             font-weight: bold;
+            font-size: 0.95em;
         }
         .signup-box input, .signup-box select {
-            padding: 10px;
-            border-radius: 5px;
+            padding: 12px;
+            border-radius: 6px;
             border: 1px solid #ccc;
+            font-size: 1em;
         }
         .signup-box button {
             margin-top: 20px;
@@ -76,9 +84,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             background: #4CAF50;
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 6px;
             font-size: 1.1em;
             cursor: pointer;
+            transition: background 0.3s ease;
         }
         .signup-box button:hover {
             background: #43a047;
@@ -91,10 +100,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         .alt {
             margin-top: 15px;
             text-align: center;
+            font-size: 0.95em;
         }
         .alt a {
             color: #2196F3;
             text-decoration: none;
+            font-weight: bold;
+        }
+        .alt a:hover {
+            text-decoration: underline;
         }
         .back-home {
             margin-top: 20px;
@@ -105,11 +119,34 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             padding: 10px 20px;
             background: #2196F3;
             color: white;
-            border-radius: 5px;
+            border-radius: 6px;
             text-decoration: none;
+            transition: background 0.3s ease;
         }
         .back-home a:hover {
             background: #1976D2;
+        }
+
+        /* ✅ Responsive Styles */
+        @media (max-width: 600px) {
+            .signup-box {
+                padding: 20px;
+                width: 100%;
+                max-width: 95%;
+            }
+            .signup-box h2 {
+                font-size: 1.5em;
+            }
+            .signup-box input,
+            .signup-box select,
+            .signup-box button {
+                font-size: 1em;
+                padding: 10px;
+            }
+            .back-home a {
+                font-size: 0.95em;
+                padding: 8px 16px;
+            }
         }
     </style>
 </head>
