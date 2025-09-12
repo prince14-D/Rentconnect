@@ -56,8 +56,27 @@ $properties = $stmt->get_result();
         .upload-btn { background: #2E7D32; color: #fff; padding: 8px 14px; border-radius: 6px; }
         .upload-btn:hover { background: #1b5e20; }
 
+        /* Hamburger Button */
+        .menu-toggle { display: none; background: none; border: none; font-size: 1.8em; cursor: pointer; }
+
+        @media (max-width: 768px) {
+            nav { 
+                display: none; 
+                flex-direction: column; 
+                position: absolute; 
+                top: 60px; 
+                right: 20px; 
+                background: #fff; 
+                padding: 15px; 
+                border-radius: 8px; 
+                box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+            }
+            nav.active { display: flex; }
+            .menu-toggle { display: block; }
+        }
+
         /* Hero */
-        .hero { background: linear-gradient(rgba(0,0,0,0.6),rgba(0,0,0,0.6)), url('images/home-bg.png') center/cover no-repeat; color: #fff; text-align: center; padding: 120px 20px; }
+        .hero { background: linear-gradient(rgba(0,0,0,0.6),rgba(0,0,0,0.6)), url('images/home-banner.png') center/cover no-repeat; color: #fff; text-align: center; padding: 120px 20px; }
         .hero h2 { font-size: 2.8em; margin-bottom: 10px; font-weight: 700; }
         .hero p { font-size: 1.2em; opacity: 0.9; }
 
@@ -96,41 +115,14 @@ $properties = $stmt->get_result();
         /* Footer */
         footer { background: #222; color: #ccc; padding: 25px; margin-top: 60px; text-align: center; }
         footer a { color: #FF9800; text-decoration: none; }
-
-        @media (max-width: 600px) {
-            .hero h2 { font-size: 2em; }
-            .search-box { flex-direction: column; align-items: stretch; }
-        }
     </style>
-    <script>
-        function initCarousel(carouselId) {
-            let index = 0;
-            const images = document.querySelectorAll(`#${carouselId} img`);
-            if (images.length === 0) return;
-            images[index].classList.add("active");
-            document.querySelector(`#${carouselId} .next`).addEventListener("click", () => {
-                images[index].classList.remove("active");
-                index = (index + 1) % images.length;
-                images[index].classList.add("active");
-            });
-            document.querySelector(`#${carouselId} .prev`).addEventListener("click", () => {
-                images[index].classList.remove("active");
-                index = (index - 1 + images.length) % images.length;
-                images[index].classList.add("active");
-            });
-        }
-        document.addEventListener("DOMContentLoaded", () => {
-            document.querySelectorAll(".carousel").forEach(carousel => {
-                initCarousel(carousel.id);
-            });
-        });
-    </script>
 </head>
 <body>
 
 <header>
     <h1>🏠RentConnect</h1>
-    <nav>
+    <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+    <nav id="navMenu">
         <a href="index.php">Home</a>
         <a href="signup.php">Sign Up</a>
         <a href="login.php">Login</a>
@@ -141,63 +133,11 @@ $properties = $stmt->get_result();
             <a href="login.php" class="upload-btn">Upload Property</a>
         <?php endif; ?>
     </nav>
-<script>
-function initCarousel(carouselId) {
-    let index = 0;
-    const carousel = document.getElementById(carouselId);
-    const images = carousel.querySelectorAll("img");
-    if (images.length === 0) return;
-
-    images.forEach(img => img.classList.remove("active"));
-    images[0].classList.add("active");
-
-    function showSlide(newIndex) {
-        images[index].classList.remove("active");
-        index = (newIndex + images.length) % images.length;
-        images[index].classList.add("active");
-    }
-
-    // Manual controls
-    carousel.querySelector(".next").addEventListener("click", () => {
-        showSlide(index + 1);
-    });
-    carousel.querySelector(".prev").addEventListener("click", () => {
-        showSlide(index - 1);
-    });
-
-    // Auto slide every 3s
-    setInterval(() => {
-        showSlide(index + 1);
-    }, 3000);
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    document.querySelectorAll(".carousel").forEach(carousel => {
-        initCarousel(carousel.id);
-    });
-});
-</script>
-
-
 </header>
 
 <section class="hero">
-    <br>
-    <br>
-    <br>
-    <br>
-    <br>
-    <br>
-    <br>
-    <br>
-    <br>
-    <br>
-    <br>
-    <br>
-    <br>
-    <br>
-    <br>
-    <br>
+    <h2>Find Your Perfect Home</h2>
+    <p>Browse verified rental listings across Liberia.</p>
 </section>
 
 <div class="search-box">
@@ -217,12 +157,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 <div class="property">
                     <div class="carousel" id="carousel-<?php echo $property['id']; ?>">
                         <?php
-                        // Fetch property images
                         $img_stmt = $conn->prepare("SELECT id FROM property_images WHERE property_id=?");
                         $img_stmt->bind_param("i", $property['id']);
                         $img_stmt->execute();
                         $images = $img_stmt->get_result();
-
                         if ($images->num_rows > 0) {
                             while ($row = $images->fetch_assoc()) {
                                 echo '<img src="display_image.php?img_id='.$row['id'].'" alt="Property Image">';
@@ -234,7 +172,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         <button class="prev">&#10094;</button>
                         <button class="next">&#10095;</button>
                     </div>
-
                     <div class="content">
                         <h4><?php echo htmlspecialchars($property['title']); ?></h4>
                         <p>📍 <?php echo htmlspecialchars($property['location']); ?></p>
@@ -250,110 +187,6 @@ document.addEventListener("DOMContentLoaded", () => {
         <?php endif; ?>
     </div>
 </section>
-
-<script>
-// Auto-slide carousel with manual prev/next
-document.addEventListener("DOMContentLoaded", () => {
-    document.querySelectorAll(".carousel").forEach(carousel => {
-        const imgs = carousel.querySelectorAll("img");
-        let index = 0;
-        if (imgs.length > 0) imgs[0].classList.add("active");
-
-        // Show slide function
-        function showSlide(newIndex) {
-            imgs[index].classList.remove("active");
-            index = (newIndex + imgs.length) % imgs.length;
-            imgs[index].classList.add("active");
-        }
-
-        // Auto-slide every 3s
-        setInterval(() => showSlide(index + 1), 3000);
-
-        // Manual controls
-        carousel.querySelector(".prev").addEventListener("click", () => showSlide(index - 1));
-        carousel.querySelector(".next").addEventListener("click", () => showSlide(index + 1));
-    });
-});
-</script>
-
-<style>
-.properties {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
-}
-
-.property {
-    background: #fff;
-    border-radius: 10px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    overflow: hidden;
-}
-
-.carousel {
-    position: relative;
-    width: 100%;
-    height: 220px;
-    overflow: hidden;
-}
-
-.carousel img {
-    width: 100%;
-    height: 220px;
-    object-fit: cover;
-    display: none;
-    transition: opacity 0.5s ease-in-out;
-    border-radius: 10px 10px 0 0;
-}
-
-.carousel img.active {
-    display: block;
-}
-
-.carousel .prev,
-.carousel .next {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    background: rgba(0,0,0,0.5);
-    color: white;
-    border: none;
-    padding: 10px;
-    cursor: pointer;
-    font-size: 18px;
-    border-radius: 50%;
-}
-
-.carousel .prev { left: 10px; }
-.carousel .next { right: 10px; }
-
-.content {
-    padding: 15px;
-}
-.content h4 {
-    margin: 0 0 10px;
-    color: #2e7d32;
-}
-.content p {
-    margin: 5px 0;
-    color: #444;
-}
-.content a {
-    display: inline-block;
-    margin-top: 10px;
-    text-decoration: none;
-    background: #2e7d32;
-    color: white;
-    padding: 8px 15px;
-    border-radius: 6px;
-    transition: background 0.3s;
-}
-.content a:hover {
-    background: #256428;
-}
-</style>
-
-
 
 <section class="section">
     <h3>Why Use RentConnect?</h3>
@@ -377,9 +210,31 @@ document.addEventListener("DOMContentLoaded", () => {
     <p>&copy; <?php echo date("Y"); ?> RentConnect Liberia. All rights reserved. | <a href="contact.php">Contact Us</a></p>
 </footer>
 
+<script>
+function toggleMenu() {
+    document.getElementById("navMenu").classList.toggle("active");
+}
+
+// Carousel Auto + Manual
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".carousel").forEach(carousel => {
+        const imgs = carousel.querySelectorAll("img");
+        let index = 0;
+        if (imgs.length > 0) imgs[0].classList.add("active");
+
+        function showSlide(newIndex) {
+            imgs[index].classList.remove("active");
+            index = (newIndex + imgs.length) % imgs.length;
+            imgs[index].classList.add("active");
+        }
+
+        setInterval(() => showSlide(index + 1), 3000);
+
+        carousel.querySelector(".prev").addEventListener("click", () => showSlide(index - 1));
+        carousel.querySelector(".next").addEventListener("click", () => showSlide(index + 1));
+    });
+});
+</script>
+
 </body>
 </html>
-
-
-
-
