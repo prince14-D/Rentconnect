@@ -126,6 +126,7 @@ $properties = $stmt->get_result();
         <a href="index.php">Home</a>
         <a href="signup.php">Sign Up</a>
         <a href="login.php">Login</a>
+        <a href="Services.php">Services</a>
         <a href="contact.php">Contact</a>
         <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'landlord'): ?>
             <a href="upload_property.php" class="upload-btn">Upload Property</a>
