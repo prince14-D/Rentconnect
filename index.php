@@ -2,8 +2,8 @@
 session_start();
 include "db.php";
 
-// Handle search filters
-$search_location = isset($_GET['location']) ? $_GET['location'] : '';
+// --- Handle search filters ---
+$search_location = isset($_GET['location']) ? trim($_GET['location']) : '';
 $min_price = isset($_GET['min_price']) ? floatval($_GET['min_price']) : 0;
 $max_price = isset($_GET['max_price']) ? floatval($_GET['max_price']) : 0;
 
@@ -43,11 +43,11 @@ $properties = $stmt->get_result();
     <title>RentConnect - Find Homes in Liberia</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        /* Global Styles */
+        /* === Global Styles === */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f7fb; color: #333; }
-        
-        /* Header */
+
+        /* === Header === */
         header { background: #ffffff; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 1000; }
         header h1 { font-size: 1.6em; color: #2E7D32; font-weight: bold; }
         nav { display: flex; gap: 20px; }
@@ -56,41 +56,41 @@ $properties = $stmt->get_result();
         .upload-btn { background: #2E7D32; color: #fff; padding: 8px 14px; border-radius: 6px; }
         .upload-btn:hover { background: #1b5e20; }
 
-        /* Hamburger Button */
+        /* === Hamburger Button === */
         .menu-toggle { display: none; background: none; border: none; font-size: 1.8em; cursor: pointer; }
-
         @media (max-width: 768px) {
             nav { 
-                display: none; 
-                flex-direction: column; 
-                position: absolute; 
-                top: 60px; 
-                right: 20px; 
-                background: #fff; 
-                padding: 15px; 
-                border-radius: 8px; 
-                box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+                display: none; flex-direction: column; position: absolute; 
+                top: 60px; right: 20px; background: #fff; padding: 15px; 
+                border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
             }
             nav.active { display: flex; }
             .menu-toggle { display: block; }
         }
 
-        /* Hero */
-        .hero { background: linear-gradient(rgba(0,0,0,0.6),rgba(0,0,0,0.6)), url('images/home-banner.png') center/cover no-repeat; color: #fff; text-align: center; padding: 120px 20px; }
-        .hero h2 { font-size: 2.8em; margin-bottom: 10px; font-weight: 700; }
-        .hero p { font-size: 1.2em; opacity: 0.9; }
+        /* === Hero Carousel === */
+        .hero-carousel { position: relative; width: 100%; height: 70vh; overflow: hidden; }
+        .hero-carousel .slide { position: absolute; width: 100%; height: 100%; opacity: 0; transition: opacity 1s ease-in-out; }
+        .hero-carousel .slide.active { opacity: 1; }
+        .hero-carousel img { width: 100%; height: 100%; object-fit: cover; }
+        .hero-carousel .caption { position: absolute; bottom: 20%; left: 50%; transform: translateX(-50%); text-align: center; color: #fff; background: rgba(0,0,0,0.5); padding: 20px; border-radius: 10px; }
+        .hero-carousel .caption h2 { font-size: 2.5em; margin-bottom: 10px; }
+        .hero-carousel .caption p { font-size: 1.2em; }
+        @media(max-width: 768px) {
+          .hero-carousel { height: 40vh; }
+          .hero-carousel .caption h2 { font-size: 1.6em; }
+          .hero-carousel .caption p { font-size: 1em; }
+        }
 
-        /* Search Box */
+        /* === Search Box === */
         .search-box { background: #fff; padding: 25px; border-radius: 14px; width: 90%; max-width: 950px; margin: -70px auto 40px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; }
         .search-box input { flex: 1 1 200px; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1em; }
         .search-box button { padding: 12px 25px; background: #2E7D32; color: white; border: none; border-radius: 8px; font-size: 1em; font-weight: bold; cursor: pointer; transition: 0.3s; }
         .search-box button:hover { background: #1b5e20; }
 
-        /* Section */
+        /* === Properties Section === */
         .section { padding: 50px 20px; text-align: center; }
         .section h3 { font-size: 2em; margin-bottom: 30px; color: #2E7D32; font-weight: 700; }
-
-        /* Properties Grid */
         .properties { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; }
         .property { background: #fff; border-radius: 14px; box-shadow: 0 4px 14px rgba(0,0,0,0.08); transition: transform 0.3s; overflow: hidden; }
         .property:hover { transform: translateY(-6px); }
@@ -100,22 +100,27 @@ $properties = $stmt->get_result();
         .carousel button { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); border: none; color: #fff; padding: 6px 10px; cursor: pointer; border-radius: 50%; }
         .carousel .prev { left: 12px; }
         .carousel .next { right: 12px; }
-
         .content { padding: 18px; text-align: left; }
         .content h4 { margin-bottom: 6px; font-size: 1.2em; color: #222; }
         .content p { margin: 4px 0; color: #555; font-size: 0.95em; }
         .content a { display: inline-block; margin-top: 12px; padding: 10px 14px; background: #2196F3; color: #fff; border-radius: 8px; text-decoration: none; font-weight: bold; }
         .content a:hover { background: #1565C0; }
 
-        /* Features */
+        /* === Features Section === */
         .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 30px; }
         .feature { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         .feature h4 { color: #2E7D32; margin-bottom: 10px; }
 
-        /* Footer */
+        /* === Footer === */
         footer { background: #222; color: #ccc; padding: 25px; margin-top: 60px; text-align: center; }
         footer a { color: #FF9800; text-decoration: none; }
+
+        .search-box {
+    margin: 20px auto 40px;
+}
+
     </style>
+
 </head>
 <body>
 
@@ -126,7 +131,7 @@ $properties = $stmt->get_result();
         <a href="index.php">Home</a>
         <a href="signup.php">Sign Up</a>
         <a href="login.php">Login</a>
-        <a href="Services.php">Services</a>
+        <a href="services.php">Services</a>
         <a href="contact.php">Contact</a>
         <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'landlord'): ?>
             <a href="upload_property.php" class="upload-btn">Upload Property</a>
@@ -136,11 +141,25 @@ $properties = $stmt->get_result();
     </nav>
 </header>
 
-<section class="hero">
-    <h2>Find Your Perfect Home</h2>
-    <p>Browse verified rental listings across Liberia.</p>
+<!-- Hero Carousel -->
+<section class="hero-carousel">
+  <div class="slide active">
+    <img src="images/home-banner.png" alt="Home Banner 1">
+    <div class="caption">
+      <h2>Find Your Perfect Home</h2>
+      <p>Browse verified rental listings across Liberia.</p>
+    </div>
+  </div>
+  <div class="slide">
+    <img src="images/home-banner-2.png" alt="Home Banner 2">
+    <div class="caption">
+      <h2>Secure & Affordable</h2>
+      <p>Trusted homes from verified landlords.</p>
+    </div>
+  </div>
 </section>
 
+<!-- Search Box -->
 <div class="search-box">
     <form method="get" action="">
         <input type="text" name="location" placeholder="Enter location" value="<?php echo htmlspecialchars($search_location); ?>">
@@ -150,6 +169,7 @@ $properties = $stmt->get_result();
     </form>
 </div>
 
+<!-- Latest Properties -->
 <section class="section">
     <h3>Latest Properties</h3>
     <div class="properties">
@@ -163,11 +183,13 @@ $properties = $stmt->get_result();
                         $img_stmt->execute();
                         $images = $img_stmt->get_result();
                         if ($images->num_rows > 0) {
+                            $first = true;
                             while ($row = $images->fetch_assoc()) {
-                                echo '<img src="display_image.php?img_id='.$row['id'].'" alt="Property Image">';
+                                echo '<img src="display_image.php?img_id='.$row['id'].'" class="'.($first ? 'active' : '').'" alt="Property Image">';
+                                $first = false;
                             }
                         } else {
-                            echo '<img src="images/no-image.png" alt="No Image">';
+                            echo '<img src="images/no-image.png" class="active" alt="No Image">';
                         }
                         ?>
                         <button class="prev">&#10094;</button>
@@ -189,6 +211,7 @@ $properties = $stmt->get_result();
     </div>
 </section>
 
+<!-- Why Use RentConnect -->
 <section class="section">
     <h3>Why Use RentConnect?</h3>
     <div class="features">
@@ -207,35 +230,42 @@ $properties = $stmt->get_result();
     </div>
 </section>
 
+<!-- Footer -->
 <footer>
     <p>&copy; <?php echo date("Y"); ?> RentConnect Liberia. All rights reserved. | <a href="contact.php">Contact Us</a></p>
 </footer>
 
 <script>
+// Toggle menu
 function toggleMenu() {
     document.getElementById("navMenu").classList.toggle("active");
 }
 
-// Carousel Auto + Manual
+// Hero Carousel auto slide
 document.addEventListener("DOMContentLoaded", () => {
+    const heroSlides = document.querySelectorAll(".hero-carousel .slide");
+    let heroIndex = 0;
+    setInterval(() => {
+        heroSlides[heroIndex].classList.remove("active");
+        heroIndex = (heroIndex + 1) % heroSlides.length;
+        heroSlides[heroIndex].classList.add("active");
+    }, 4000);
+
+    // Property carousels
     document.querySelectorAll(".carousel").forEach(carousel => {
         const imgs = carousel.querySelectorAll("img");
         let index = 0;
-        if (imgs.length > 0) imgs[0].classList.add("active");
-
         function showSlide(newIndex) {
             imgs[index].classList.remove("active");
             index = (newIndex + imgs.length) % imgs.length;
             imgs[index].classList.add("active");
         }
-
+        if (imgs.length > 0) imgs[0].classList.add("active");
         setInterval(() => showSlide(index + 1), 3000);
-
         carousel.querySelector(".prev").addEventListener("click", () => showSlide(index - 1));
         carousel.querySelector(".next").addEventListener("click", () => showSlide(index + 1));
     });
 });
 </script>
-
 </body>
 </html>
