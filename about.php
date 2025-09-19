@@ -172,7 +172,7 @@ footer a:hover { text-decoration: underline; }
 <body>
 
 <header>
-  <h1><a href="index.php">🏠 RentConnect</a></h1>
+  <h1><a href="index.php">RentConnect</a></h1>
   <div class="hamburger" onclick="toggleMenu(this)">
     <div></div><div></div><div></div>
   </div>

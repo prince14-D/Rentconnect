@@ -52,7 +52,7 @@ $properties = $stmt->get_result();
         header h1 { font-size: 1.6em; color: #2E7D32; font-weight: bold; }
         nav { display: flex; gap: 20px; }
         nav a { text-decoration: none; color: #444; font-weight: 500; transition: 0.3s; }
-        nav a:hover { color: #2E7D32; }
+        nav a:hover { color: #ffffffff; }
         .upload-btn { background: #2E7D32; color: #fff; padding: 8px 14px; border-radius: 6px; }
         .upload-btn:hover { background: #1b5e20; }
 
@@ -191,7 +191,7 @@ nav .dropbtn:hover {
 <header>
     <h1>
         <a href="index.php" style="text-decoration: none; color: #2E7D32;">
-            🏠RentConnect
+            RentConnect
         </a>
     </h1>
     <button class="menu-toggle" onclick="toggleMenu()">☰</button>
@@ -242,7 +242,7 @@ nav .dropbtn:hover {
         <input type="text" name="location" placeholder="Enter location" value="<?php echo htmlspecialchars($search_location); ?>">
         <input type="number" name="min_price" placeholder="Min Price" value="<?php echo $min_price ?: ''; ?>">
         <input type="number" name="max_price" placeholder="Max Price" value="<?php echo $max_price ?: ''; ?>">
-        <button type="submit">🔍 Search</button>
+        <button type="submit">Search</button>
     </form>
 </div>
 
