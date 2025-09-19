@@ -119,20 +119,96 @@ $properties = $stmt->get_result();
     margin: 20px auto 40px;
 }
 
+/* Nav links & buttons */
+nav a, 
+nav .dropbtn {
+  text-decoration: none;
+  color: #444;
+  font-weight: 500;
+  padding: 8px 14px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 1em;
+  transition: 0.3s;
+}
+
+nav a:hover, 
+nav .dropbtn:hover {
+  color: #2E7D32;
+}
+
+/* Dropdown wrapper */
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+/* Dropdown content */
+.dropdown-content {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #fff;
+  min-width: 160px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  border-radius: 6px;
+  z-index: 999;
+}
+
+.dropdown-content a {
+  display: block;
+  padding: 10px;
+  text-decoration: none;
+  color: #444;
+  font-size: 0.95em;
+}
+
+.dropdown-content a:hover {
+  background: #f5f5f5;
+  color: #2E7D32;
+}
+
+/* Desktop hover */
+@media (min-width: 769px) {
+  .dropdown:hover .dropdown-content {
+    display: block;
+  }
+}
+
+/* Mobile click */
+.dropdown.active .dropdown-content {
+  display: block;
+}
+
+
     </style>
 
 </head>
 <body>
 
 <header>
-    <h1>🏠RentConnect</h1>
+    <h1>
+        <a href="index.php" style="text-decoration: none; color: #2E7D32;">
+            🏠RentConnect
+        </a>
+    </h1>
     <button class="menu-toggle" onclick="toggleMenu()">☰</button>
     <nav id="navMenu">
-        <a href="index.php">Home</a>
-        <a href="signup.php">Sign Up</a>
-        <a href="login.php">Login</a>
+        <a href="about.php">About Us</a>
         <a href="services.php">Services</a>
         <a href="contact.php">Contact</a>
+
+        <!-- Dropdown -->
+        <div class="dropdown">
+            <button class="dropbtn" onclick="toggleDropdown(event)">Account ▾</button>
+            <div class="dropdown-content">
+                <a href="login.php">Login</a>
+                <a href="signup.php">Sign Up</a>
+            </div>
+        </div>
+
         <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'landlord'): ?>
             <a href="upload_property.php" class="upload-btn">Upload Property</a>
         <?php else: ?>
@@ -140,6 +216,7 @@ $properties = $stmt->get_result();
         <?php endif; ?>
     </nav>
 </header>
+
 
 <!-- Hero Carousel -->
 <section class="hero-carousel">
@@ -267,5 +344,18 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 </script>
+
+<script>
+function toggleMenu() {
+    document.getElementById("navMenu").classList.toggle("active");
+}
+
+function toggleDropdown(event) {
+    event.preventDefault();
+    const dropdown = event.target.closest(".dropdown");
+    dropdown.classList.toggle("active");
+}
+</script>
+
 </body>
 </html>
