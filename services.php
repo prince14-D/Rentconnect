@@ -10,12 +10,12 @@
 
     /* Header */
     header {
-      background: #fff; padding: 15px 25px;
+      background: #fff; padding: 0px 0px;
       display: flex; justify-content: space-between; align-items: center;
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
       position: sticky; top: 0; z-index: 1000;
     }
-    header h1 a { text-decoration: none; color: #2E7D32; font-size: 1.6em; font-weight: bold; }
+    header h1 a { text-decoration: none; color: #2E7D32; font-size: 1.1em; font-weight: bold; }
     nav { display: flex; gap: 20px; align-items: center; }
     nav a, nav .dropbtn {
       text-decoration: none; color: #444; font-weight: 500;
@@ -24,6 +24,30 @@
     nav a:hover, nav .dropbtn:hover { background: #f0f0f0; color: #2E7D32; }
     .upload-btn { background: #2E7D32; color: #fff; }
     .upload-btn:hover { background: #1b5e20; color: #fff; }
+
+    /* Mobile Menu */
+    .menu-toggle {
+      display: none;
+      font-size: 1.8em;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #2E7D32;
+    }
+    @media (max-width: 768px) {
+      nav { 
+        display: none; 
+        flex-direction: column; 
+        gap: 10px; 
+        background: #fff; 
+        position: absolute; 
+        top: 70px; left: 0; width: 100%; 
+        padding: 15px; 
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1); 
+      }
+      nav.show { display: flex; }
+      .menu-toggle { display: block; }
+    }
 
     /* Dropdown */
     .dropdown { position: relative; display: inline-block; }
@@ -47,6 +71,10 @@
     }
     .banner h2 { font-size: 2.6em; font-weight: 700; margin-bottom: 10px; }
     .banner p { font-size: 1.1em; opacity: 0.9; }
+    @media (max-width: 768px) {
+      .banner h2 { font-size: 1.8em; }
+      .banner p { font-size: 1em; }
+    }
 
     /* Services Section */
     .container { max-width: 1100px; margin: 40px auto; padding: 0 20px; }
@@ -98,20 +126,23 @@
 <body>
 
 <header>
-  <h1><a href="index.php">🏠 RentConnect</a></h1>
+  <h1><a href="index.php">RentConnect</a></h1>
+  <button class="menu-toggle" onclick="toggleMenu()">☰</button>
   <nav id="navMenu">
     <a href="about.php">About Us</a>
     <a href="services.php">Services</a>
     <a href="contact.php">Contact</a>
 
     <!-- Dropdown -->
-    <div class="dropdown">
-      <button class="dropbtn" onclick="toggleDropdown(event)">Account ▾</button>
-      <div class="dropdown-content">
-        <a href="login.php">Login</a>
-        <a href="signup.php">Sign Up</a>
-      </div>
-    </div>
+    <!-- Dropdown -->
+<div class="dropdown">
+  <button class="dropbtn" onclick="toggleDropdown(event)">Account ▾</button>
+  <div class="dropdown-content">
+    <a href="login.php" onclick="closeMenu()">Login</a>
+    <a href="signup.php" onclick="closeMenu()">Sign Up</a>
+  </div>
+</div>
+
 
     <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'landlord'): ?>
         <a href="upload_property.php" class="upload-btn">Upload Property</a>
@@ -195,7 +226,32 @@ function toggleDropdown(event) {
   const dropdown = event.target.closest(".dropdown");
   dropdown.classList.toggle("active");
 }
+function toggleMenu() {
+  document.getElementById("navMenu").classList.toggle("show");
+}
+
+
 </script>
+
+<script>
+function toggleDropdown(event) {
+  event.preventDefault();
+  const dropdown = event.target.closest(".dropdown");
+  dropdown.classList.toggle("active");
+}
+
+function toggleMenu() {
+  document.getElementById("navMenu").classList.toggle("show");
+}
+
+function closeMenu() {
+  // Collapse both the mobile menu and dropdown after clicking
+  document.getElementById("navMenu").classList.remove("show");
+  const dropdowns = document.querySelectorAll(".dropdown");
+  dropdowns.forEach(d => d.classList.remove("active"));
+}
+</script>
+
 
 </body>
 </html>

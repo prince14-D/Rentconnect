@@ -13,7 +13,7 @@ body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f7fb; color: 
 /* === Header === */
 header {
   background: #fff;
-  padding: 15px 25px;
+  padding: 0px 0px;
   display: flex;
   justify-content: space-between;
   align-items: center;
