@@ -12,10 +12,10 @@
     header {
       background: #fff; padding: 0px 0px;
       display: flex; justify-content: space-between; align-items: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
       position: sticky; top: 0; z-index: 1000;
     }
-    header h1 a { text-decoration: none; color: #2E7D32; font-size: 1.1em; font-weight: bold; }
+    header h1 a { text-decoration: none; color: #2E7D32; font-size: 0.9em; font-weight: bold; }
     nav { display: flex; gap: 20px; align-items: center; }
     nav a, nav .dropbtn {
       text-decoration: none; color: #444; font-weight: 500;

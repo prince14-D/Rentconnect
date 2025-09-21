@@ -8,12 +8,12 @@
 <style>
 /* === Global Reset === */
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f7fb; color: #333; line-height: 1.6; }
+body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f7fb; color: #333; }
 
 /* === Header === */
 header {
   background: #fff;
-  padding: 0px 0px;
+  padding: 15px 25px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -26,7 +26,7 @@ header {
 header h1 a {
   text-decoration: none;
   color: #2E7D32;
-  font-size: 1.1em;
+  font-size: 0.9em;
   font-weight: bold;
 }
 

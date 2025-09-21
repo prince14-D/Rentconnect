@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Contact Us - RentConnect</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
     body { font-family: 'Segoe UI', Tahoma, sans-serif; margin:0; background:#f5f7fb; color:#333; }
 
@@ -69,37 +70,47 @@
 
     /* Banner */
     .banner {
-      background: linear-gradient(rgba(0,0,0,0.6),rgba(0,0,0,0.6)), url('images/home-banner-2.png') center/cover no-repeat;
+      background: linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.5)), url('images/home-banner-2.png') center/cover no-repeat;
       color: #fff; text-align: center; padding: 80px 20px;
     }
-    .banner h2 { font-size: 2.4em; font-weight: 700; margin-bottom: 10px; }
-    .banner p { font-size: 1em; opacity: 0.9; }
+    .banner h2 { font-size: 2.6em; font-weight: 700; margin-bottom: 10px; }
+    .banner p { font-size: 1.1em; opacity: 0.9; }
 
     /* Contact Section */
-    .contact-container {
-      max-width: 1100px; margin: 50px auto; display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 30px; padding: 0 20px;
+    .contact-section {
+      max-width: 900px; margin: 50px auto; padding: 0 20px;
+      display: flex; flex-direction: column; align-items: center; gap: 40px;
     }
+
+    .contact-cards {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 30px;
+      width: 100%;
+    }
+
     .contact-info, .contact-form {
-      background:#fff; padding:25px; border-radius:12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      background:#fff; padding:30px; border-radius:12px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.08); flex: 1 1 350px;
     }
+
     .contact-info h3, .contact-form h3 { color:#2E7D32; margin-bottom:15px; }
-    .contact-info p { margin: 8px 0; }
+    .contact-info p { margin: 8px 0; font-size:0.95em; }
     .contact-info a { color:#2E7D32; text-decoration:none; }
     .contact-info a:hover { text-decoration:underline; }
     .contact-info .social { margin-top:15px; }
-    .contact-info .social a { margin-right:12px; font-size:20px; color:#2E7D32; }
+    .contact-info .social a { margin-right:12px; font-size:22px; color:#2E7D32; transition:0.3s; }
+    .contact-info .social a:hover { color:#1b5e20; }
 
     .contact-form input, .contact-form textarea {
-      width:100%; padding:12px; margin:8px 0;
-      border:1px solid #ddd; border-radius:6px; font-size:1em;
+      width:100%; padding:14px; margin:10px 0;
+      border:1px solid #ddd; border-radius:8px; font-size:1em;
+      transition:0.3s;
     }
-    .contact-form textarea { resize:none; height:120px; }
+    .contact-form input:focus, .contact-form textarea:focus { border-color: #2E7D32; outline:none; }
+
+    .contact-form textarea { resize:none; height:140px; }
     .contact-form button {
       background:#2E7D32; color:#fff; border:none;
-      padding:12px 20px; border-radius:6px;
+      padding:14px 25px; border-radius:8px;
       font-size:1em; cursor:pointer; transition:0.3s;
     }
     .contact-form button:hover { background:#1b5e20; }
@@ -111,8 +122,18 @@
     }
     footer a { color:#FF9800; text-decoration:none; }
     footer a:hover { text-decoration:underline; }
+
+    /* Google Maps */
+    .map-container {
+      width: 100%; height: 300px; border-radius:12px; overflow:hidden;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    }
+
+    @media(max-width:768px){
+      .contact-cards { flex-direction: column; }
+    }
+
   </style>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
 
@@ -153,44 +174,45 @@
 </section>
 
 <!-- Contact Section -->
-<div class="contact-container">
-  <!-- Info -->
-  <div class="contact-info">
-    <h3>📍 Our Office</h3>
-    <p>Monrovia, Liberia</p>
-    <p><strong>Email:</strong> <a href="mailto:support@rentconnect.com">support@rentconnect.com</a></p>
-    <p><strong>Phone:</strong> +231-888-272-360</p>
+<section class="contact-section">
 
-    <div class="social">
-      <a href="#"><i class="fab fa-facebook"></i></a>
-      <a href="#"><i class="fab fa-twitter"></i></a>
-      <a href="#"><i class="fab fa-instagram"></i></a>
+  <div class="contact-cards">
+    <!-- Info -->
+    <div class="contact-info">
+      <h3>📍 Our Office</h3>
+      <p>Monrovia, Liberia</p>
+      <p><strong>Email:</strong> <a href="mailto:support@rentconnect.com">support@rentconnect.com</a></p>
+      <p><strong>Phone:</strong> +231-888-272-360</p>
+
+      <div class="social">
+        <a href="#"><i class="fab fa-facebook"></i></a>
+        <a href="#"><i class="fab fa-twitter"></i></a>
+        <a href="#"><i class="fab fa-instagram"></i></a>
+      </div>
+
+      <div class="map-container" style="margin-top:20px;">
+        <iframe 
+          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3972.1587728906827!2d-10.799231785234894!3d6.290743726450797!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xf0e9e5c7ab94a2f%3A0x3a8f39fcbdf4c4df!2sMonrovia%2C%20Liberia!5e0!3m2!1sen!2s!4v1691500000000!5m2!1sen!2s" 
+          width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy" 
+          referrerpolicy="no-referrer-when-downgrade">
+        </iframe>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <div class="contact-form">
+      <h3>Send a Message</h3>
+      <form action="send_message.php" method="POST">
+        <input type="text" name="name" placeholder="Your Name" required>
+        <input type="email" name="email" placeholder="Your Email" required>
+        <input type="text" name="subject" placeholder="Subject" required>
+        <textarea name="message" placeholder="Your Message" required></textarea>
+        <button type="submit">Send Message</button>
+      </form>
     </div>
   </div>
 
-
-    <!-- Google Maps -->
-    <div style="margin-top:20px; border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.08);">
-      <iframe 
-        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3972.1587728906827!2d-10.799231785234894!3d6.290743726450797!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xf0e9e5c7ab94a2f%3A0x3a8f39fcbdf4c4df!2sMonrovia%2C%20Liberia!5e0!3m2!1sen!2s!4v1691500000000!5m2!1sen!2s" 
-        width="100%" height="250" style="border:0;" allowfullscreen="" loading="lazy" 
-        referrerpolicy="no-referrer-when-downgrade">
-      </iframe>
-    </div>
-  </div>
-
-  <!-- Form -->
-  <div class="contact-form">
-    <h3>Send a Message</h3>
-    <form action="send_message.php" method="POST">
-      <input type="text" name="name" placeholder="Your Name" required>
-      <input type="email" name="email" placeholder="Your Email" required>
-      <input type="text" name="subject" placeholder="Subject" required>
-      <textarea name="message" placeholder="Your Message" required></textarea>
-      <button type="submit">Send Message</button>
-    </form>
-  </div>
-</div>
+</section>
 
 <footer>
   <p>&copy; <?php echo date("Y"); ?> RentConnect Liberia. All rights reserved. | <a href="services.php">Our Services</a></p>
