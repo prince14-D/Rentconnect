@@ -4,40 +4,46 @@ include "db.php";
 
 $message = "";
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
+// Handle login form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email']);
     $password = trim($_POST['password']);
 
-    $stmt = $conn->prepare("SELECT id, password, role FROM users WHERE email=?");
+    // Fetch user by email
+    $stmt = $conn->prepare("SELECT id, name, password, role FROM users WHERE email=? LIMIT 1");
     $stmt->bind_param("s", $email);
     $stmt->execute();
-    $result = $stmt->get_result();
+    $stmt->bind_result($id, $name, $hashedPassword, $role);
 
-     if ($result->num_rows == 1) {
-        $row = $result->fetch_assoc();
-        if (password_verify($password, $row['password'])) {
-            $_SESSION['user_id'] = $row['id'];
-            $_SESSION['role'] = $row['role'];
+    if ($stmt->fetch()) {
+        if (password_verify($password, $hashedPassword)) {
+            $_SESSION['user_id'] = $id;
+            $_SESSION['name'] = $name;
+            $_SESSION['role'] = $role;
 
             // Redirect based on role
-            if ($row['role'] === 'admin') {
-                header("Location: admin_dashboard.php");
-            } elseif ($row['role'] === 'landlord') {
+            if ($role === 'super_admin') {
+                header("Location: super_admin_dashboard.php");
+            } elseif ($role === 'landlord') {
                 header("Location: landlord_dashboard.php");
-            } else {
+            } elseif ($role === 'renter') {
                 header("Location: renter_dashboard.php");
             }
-            exit;
-
+            exit();
         } else {
-            $message = "Invalid password.";
+            $message = "Incorrect password.";
         }
     } else {
-        $message = "No account found with that email.";
+        $message = "No account found with this email.";
     }
-}
-?>
 
+    $stmt->close();
+}
+
+// ✅ Get prefilled email from signup
+$prefill_email = $_SESSION['prefill_email'] ?? '';
+unset($_SESSION['prefill_email']); // clear after showing once
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -102,6 +108,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             text-align: center;
             color: red;
         }
+        .success {
+            margin: 15px 0;
+            text-align: center;
+            color: green;
+            font-weight: bold;
+        }
         .alt {
             margin-top: 15px;
             text-align: center;
@@ -132,7 +144,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             background: #1976D2;
         }
 
-        /* ✅ Responsive Styles */
         @media (max-width: 600px) {
             .login-box {
                 padding: 20px;
@@ -156,15 +167,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <body>
     <div class="login-box">
         <h2>Login</h2>
+
+        <?php if (isset($_SESSION['success_message'])): ?>
+            <p class="success"><?= $_SESSION['success_message']; ?></p>
+            <?php unset($_SESSION['success_message']); ?>
+        <?php endif; ?>
+
         <?php if ($message): ?>
             <p class="message"><?php echo $message; ?></p>
         <?php endif; ?>
+
         <form method="post" action="">
             <label>Email Address</label>
-            <input type="email" name="email" required>
+            <input type="email" name="email" required value="<?= htmlspecialchars($prefill_email) ?>">
 
             <label>Password</label>
-            <input type="password" name="password" required>
+            <input type="password" name="password" required id="password">
 
             <button type="submit">Login</button>
         </form>
@@ -173,10 +191,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             Don't have an account? <a href="signup.php">Sign Up</a>
         </div>
 
-        <!-- Back to Home Button -->
         <div class="back-home">
             <a href="index.php">⬅ Back to Home</a>
         </div>
     </div>
+
+    <script>
+        // ✅ Autofocus password if email is prefilled
+        window.onload = function() {
+            const emailField = document.querySelector("input[name='email']");
+            const passwordField = document.getElementById("password");
+            if (emailField.value.trim() !== "") {
+                passwordField.focus();
+            } else {
+                emailField.focus();
+            }
+        }
+    </script>
 </body>
 </html>
