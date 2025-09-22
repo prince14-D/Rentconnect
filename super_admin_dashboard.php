@@ -4,7 +4,7 @@ include "db.php";
 
 // Only allow super admin
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'super_admin') {
-    header("Location: super_admin_login.php");
+    header("Location: login.php");
     exit();
 }
 

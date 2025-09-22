@@ -17,21 +17,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $check = $stmt->get_result();
 
     if ($check->num_rows > 0) {
-        $message = "Email already registered. Please login.";
+        $message = "⚠ Email already registered. Please login.";
     } else {
         $stmt = $conn->prepare("INSERT INTO users (name, email, password, role, created_at) VALUES (?, ?, ?, ?, NOW())");
         $stmt->bind_param("ssss", $name, $email, $password, $role);
         if ($stmt->execute()) {
-            $_SESSION['user_id'] = $stmt->insert_id;
-            $_SESSION['role'] = $role;
-            header("Location: " . ($role == 'landlord' ? "landlord_dashboard.php" : "renter_dashboard.php"));
+            // ✅ Instead of logging them in, show success + redirect to login
+            $_SESSION['success_message'] = "🎉 Registration successful! Please login with your $role account.";
+            header("Location: login.php");
             exit;
         } else {
-            $message = "Error signing up. Try again.";
+            $message = "❌ Error signing up. Try again.";
         }
     }
 }
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
