@@ -21,16 +21,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $bathrooms = $_POST['bathrooms'] ?? 0;
     $description = $_POST['description'] ?? "";
 
-    // Insert property
-    $stmt = $conn->prepare("INSERT INTO properties (owner_id, title, location, price, contact, bedrooms, bathrooms, description, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
-    $stmt->bind_param("issdsdds", $landlord_id, $title, $location, $price, $contact, $bedrooms, $bathrooms, $description);
+    // Insert property as 'pending'
+    $stmt = $conn->prepare("
+        INSERT INTO properties 
+        (landlord_id, title, location, price, contact, bedrooms, bathrooms, description, status, created_at) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW())
+    ");
+    $stmt->bind_param(
+        "issdsdds", 
+        $landlord_id, 
+        $title, 
+        $location, 
+        $price, 
+        $contact, 
+        $bedrooms, 
+        $bathrooms, 
+        $description
+    );
 
     if ($stmt->execute()) {
         $property_id = $stmt->insert_id;
 
-        /* ---------------------------
-           Handle Multiple Image Uploads
-        --------------------------- */
+        // Handle Multiple Image Uploads
         if (!empty($_FILES['photos']['name'][0])) {
             $total_files = count($_FILES['photos']['name']);
 
@@ -41,7 +53,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     $img_stmt = $conn->prepare("INSERT INTO property_images (property_id, image, mime_type) VALUES (?, ?, ?)");
                     
-                    // bind blob properly
                     $null = NULL;
                     $img_stmt->bind_param("ibs", $property_id, $null, $mimeType); 
                     $img_stmt->send_long_data(1, $imageData);
@@ -53,13 +64,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        $message .= "✅ Property uploaded successfully!";
+        $message .= "✅ Property uploaded successfully! Waiting for Super Admin approval.";
     } else {
         $message = "❌ Failed to upload property: " . $stmt->error;
     }
 }
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -71,7 +81,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 body { font-family: Arial, sans-serif; background:#f7f9f7; margin:0; padding:0; }
 header { background:#2e7d32; color:white; text-align:center; padding:20px; font-size:1.5em; }
 .container { max-width:650px; margin:30px auto; padding:20px; background:white; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
-h2 { text-align:center; color:#2e7d32; margin-bottom:20px; }
 input, textarea, button { width:100%; padding:10px; margin:10px 0; border-radius:6px; border:1px solid #ccc; font-size:1em; }
 textarea { resize:none; height:100px; }
 button { background:#2e7d32; color:white; border:none; cursor:pointer; font-size:1.1em; }
@@ -88,7 +97,7 @@ a.back { display:block; text-align:center; margin-top:15px; color:#2e7d32; text-
 
 <header>Upload Property</header>
 <div class="container">
-    <?php if(isset($message) && $message) echo "<p class='message'>$message</p>"; ?>
+    <?php if($message) echo "<p class='message'>$message</p>"; ?>
 
     <form method="post" enctype="multipart/form-data">
         <input type="text" name="title" placeholder="Property Title" required>
@@ -99,7 +108,6 @@ a.back { display:block; text-align:center; margin-top:15px; color:#2e7d32; text-
         <input type="number" name="bathrooms" placeholder="Bathrooms">
         <textarea name="description" placeholder="Property Description"></textarea>
 
-        <!-- Multiple image upload -->
         <input type="file" id="photos" name="photos[]" multiple accept="image/*">
         <div id="preview" class="preview-container"></div>
 
@@ -114,7 +122,7 @@ const input = document.getElementById('photos');
 const preview = document.getElementById('preview');
 
 input.addEventListener('change', () => {
-    preview.innerHTML = ''; // clear old previews
+    preview.innerHTML = ''; 
     Array.from(input.files).forEach((file, index) => {
         const reader = new FileReader();
         reader.onload = e => {
@@ -131,17 +139,13 @@ input.addEventListener('change', () => {
 
 function removeImage(index) {
     let dt = new DataTransfer();
-    let { files } = input;
-
-    Array.from(files).forEach((file, i) => {
+    Array.from(input.files).forEach((file, i) => {
         if (i !== index) dt.items.add(file);
     });
-
     input.files = dt.files;
-    input.dispatchEvent(new Event('change')); // refresh preview
+    input.dispatchEvent(new Event('change')); 
 }
 </script>
 
 </body>
 </html>
-

@@ -14,15 +14,21 @@ $message = "";
 /* -------------------------
    APPROVE / DECLINE REQUEST
 ------------------------- */
-if (isset($_GET['action']) && isset($_GET['request_id'])) {
+if (isset($_GET['action'], $_GET['request_id'])) {
     $action = $_GET['action'];
     $req_id = intval($_GET['request_id']);
     $new_status = ($action === "approve") ? "approved" : "declined";
 
-    $stmt = $conn->prepare("UPDATE requests SET status=? WHERE id=?");
-    $stmt->bind_param("si", $new_status, $req_id);
-    if ($stmt->execute()) $message = "✅ Request updated!";
-    else $message = "❌ Could not update request.";
+    // Ensure landlord owns the property
+    $stmt = $conn->prepare("
+        UPDATE requests r
+        JOIN properties p ON r.property_id = p.id
+        SET r.status=?
+        WHERE r.id=? AND p.owner_id=?
+    ");
+    $stmt->bind_param("sii", $new_status, $req_id, $landlord_id);
+    $stmt->execute();
+    $message = $stmt->affected_rows > 0 ? "✅ Request updated!" : "❌ Could not update request.";
 }
 
 /* -------------------------
@@ -43,6 +49,7 @@ $stmt->bind_param("i", $landlord_id);
 $stmt->execute();
 $requests = $stmt->get_result();
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>

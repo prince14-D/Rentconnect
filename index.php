@@ -2,40 +2,60 @@
 session_start();
 include "db.php";
 
-// --- Handle search filters ---
+// --- Search Filters ---
 $search_location = isset($_GET['location']) ? trim($_GET['location']) : '';
 $min_price = isset($_GET['min_price']) ? floatval($_GET['min_price']) : 0;
 $max_price = isset($_GET['max_price']) ? floatval($_GET['max_price']) : 0;
 
-$sql = "SELECT p.*, u.name AS landlord_name 
-        FROM properties p
-        JOIN users u ON p.owner_id = u.id
-        WHERE 1 ";
+// --- User Info ---
+$user_id = $_SESSION['user_id'] ?? null;
+$user_role = $_SESSION['role'] ?? null;
+
+// --- Base SQL ---
+$sql = "SELECT p.*, l.name AS landlord_name 
+        FROM properties p 
+        JOIN users l ON p.landlord_id = l.id 
+        WHERE 1=1 ";
 $params = [];
 $types = "";
 
+// --- Role-based filtering ---
+if ($user_role === 'landlord') {
+    // Landlord sees their own pending and approved properties
+    $sql .= " AND p.landlord_id = ? AND p.status IN ('pending', 'approved') ";
+    $types .= "i";
+    $params[] = $user_id;
+} else {
+    // Visitors/renters see only approved properties
+    $sql .= " AND p.status = 'approved' ";
+}
+
+// --- Apply search filters ---
 if (!empty($search_location)) {
-    $sql .= "AND p.location LIKE ? ";
+    $sql .= " AND p.location LIKE ? ";
     $types .= "s";
     $params[] = "%$search_location%";
 }
 if ($min_price > 0) {
-    $sql .= "AND p.price >= ? ";
+    $sql .= " AND p.price >= ? ";
     $types .= "d";
     $params[] = $min_price;
 }
 if ($max_price > 0) {
-    $sql .= "AND p.price <= ? ";
+    $sql .= " AND p.price <= ? ";
     $types .= "d";
     $params[] = $max_price;
 }
 
-$sql .= "ORDER BY p.created_at DESC LIMIT 12";
+$sql .= " ORDER BY p.created_at DESC LIMIT 12";
+
+// --- Prepare and execute ---
 $stmt = $conn->prepare($sql);
 if ($types) $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $properties = $stmt->get_result();
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -276,7 +296,9 @@ nav .dropbtn:hover {
                         <h4><?php echo htmlspecialchars($property['title']); ?></h4>
                         <p>📍 <?php echo htmlspecialchars($property['location']); ?></p>
                         <p>💲 $<?php echo number_format($property['price']); ?></p>
-                        <p>📞 <?php echo htmlspecialchars($property['contact']); ?></p>
+                        <?php if ($user_role === 'landlord'): ?>
+                            <p>Status: <strong><?php echo ucfirst($property['status']); ?></strong></p>
+                        <?php endif; ?>
                         <p><i>Landlord: <?php echo htmlspecialchars($property['landlord_name']); ?></i></p>
                         <a href="login.php">View Details</a>
                     </div>
@@ -287,6 +309,7 @@ nav .dropbtn:hover {
         <?php endif; ?>
     </div>
 </section>
+
 
 <!-- Why Use RentConnect -->
 <section class="section">

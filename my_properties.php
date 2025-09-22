@@ -9,23 +9,53 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'landlord') {
 }
 
 $landlord_id = $_SESSION['user_id'];
-$message = "";
+$status_filter = $_GET['status'] ?? 'all';
+$search = trim($_GET['search'] ?? '');
 
-/* DELETE PROPERTY */
-if (isset($_GET['delete'])) {
-    $prop_id = intval($_GET['delete']);
-    $stmt = $conn->prepare("DELETE FROM properties WHERE id=? AND owner_id=?");
-    $stmt->bind_param("ii", $prop_id, $landlord_id);
-    if ($stmt->execute()) $message = "✅ Property deleted successfully!";
-    else $message = "❌ Could not delete property.";
+// Handle delete action
+$message = '';
+if (isset($_GET['delete_id'])) {
+    $delete_id = intval($_GET['delete_id']);
+    $stmt = $conn->prepare("DELETE FROM properties WHERE id=? AND landlord_id=?");
+    $stmt->bind_param("ii", $delete_id, $landlord_id);
+    if ($stmt->execute()) {
+        $message = "✅ Property deleted successfully.";
+    } else {
+        $message = "❌ Failed to delete property.";
+    }
 }
 
-/* FETCH PROPERTIES */
-$stmt = $conn->prepare("SELECT * FROM properties WHERE owner_id=? ORDER BY created_at DESC");
-$stmt->bind_param("i", $landlord_id);
+// Base query: landlord's properties OR pending properties assigned to them
+$sql = "SELECT * FROM properties 
+        WHERE (landlord_id=? OR (status='pending' AND landlord_id=?))";
+$params = [$landlord_id, $landlord_id];
+$types = "ii";
+
+// Apply status filter
+if ($status_filter !== 'all') {
+    $sql .= " AND status=?";
+    $params[] = $status_filter;
+    $types .= "s";
+}
+
+// Apply search filter
+if ($search !== '') {
+    $sql .= " AND (title LIKE ? OR location LIKE ?)";
+    $searchTerm = "%$search%";
+    $params[] = $searchTerm;
+    $params[] = $searchTerm;
+    $types .= "ss";
+}
+
+// Order by status priority and creation date
+$sql .= " ORDER BY FIELD(status,'pending','approved','taken','inactive'), created_at DESC";
+
+$stmt = $conn->prepare($sql);
+$stmt->bind_param($types, ...$params);
 $stmt->execute();
-$properties = $stmt->get_result();
+$result = $stmt->get_result();
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -35,50 +65,112 @@ $properties = $stmt->get_result();
 <style>
 body { margin:0; font-family:Arial,sans-serif; background:#f7f9f7; }
 header { background:#2e7d32; color:white; text-align:center; padding:20px; font-size:1.5em; }
-.container { max-width:900px; margin:30px auto; padding:0 15px; display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px; }
-.card { background:white; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.1); overflow:hidden; transition:0.3s; }
-.card:hover { transform:translateY(-5px); box-shadow:0 6px 14px rgba(0,0,0,0.15); }
-.card img { width:100%; height:180px; object-fit:cover; }
-.card-body { padding:15px; }
-.card-body h3 { margin:0 0 8px; color:#2e7d32; }
-.card-body p { margin:4px 0; color:#555; font-size:0.9em; }
-.card-actions { display:flex; justify-content:space-between; margin-top:10px; }
-.btn { padding:8px 12px; border-radius:6px; font-size:0.9em; text-decoration:none; color:white; }
-.btn-edit { background:#4CAF50; }
-.btn-delete { background:#f44336; }
+.container { max-width:1100px; margin:20px auto; padding:15px; background:white; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
+h2 { text-align:center; color:#2e7d32; margin-bottom:20px; }
+
+.filter-bar { display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; margin-bottom:20px; }
+.filter-bar form { display:flex; flex-wrap:wrap; gap:10px; width:100%; }
+.filter-bar select, .filter-bar input[type=text] { padding:8px 12px; border-radius:6px; border:1px solid #ccc; flex:1; min-width:120px; }
+.filter-bar button { padding:8px 14px; border:none; border-radius:6px; background:#2e7d32; color:#fff; cursor:pointer; }
+.filter-bar button:hover { background:#1b5e20; }
+
+table { width:100%; border-collapse:collapse; }
+th, td { padding:10px; border-bottom:1px solid #ddd; text-align:left; font-size:0.95em; }
+th { background:#f0f0f0; }
+.status-badge { padding:4px 10px; border-radius:6px; color:white; font-weight:bold; font-size:0.85em; }
+.pending { background:#ffa000; }
+.approved { background:#2e7d32; }
+.taken { background:#1976d2; }
+.inactive { background:#9e9e9e; }
+
+a.btn { padding:6px 12px; border-radius:6px; text-decoration:none; font-size:0.85em; margin:2px 2px 2px 0; color:white; display:inline-block; }
+.edit { background:#1976d2; }
+.edit:hover { background:#0d47a1; }
+.delete { background:#f44336; }
+.delete:hover { background:#b71c1c; }
+
 .message { text-align:center; color:green; font-weight:bold; margin-bottom:15px; }
-a.back { display:block; margin:20px auto; text-align:center; color:#2e7d32; text-decoration:none; font-weight:bold; }
-@media(max-width:500px){ .container { grid-template-columns:1fr; } }
+a.back { display:block; text-align:center; margin-top:15px; color:#2e7d32; text-decoration:none; font-weight:bold; }
+
+/* Responsive */
+@media(max-width:768px){
+    table, thead, tbody, th, td, tr { display:block; }
+    tr { margin-bottom:15px; border-bottom:1px solid #ccc; }
+    th { display:none; }
+    td { display:flex; justify-content:space-between; padding:8px; border:none; border-bottom:1px solid #eee; }
+    td::before { content: attr(data-label); font-weight:bold; color:#555; flex:1; }
+    td span.status-badge { display:inline-block; }
+    .filter-bar form { flex-direction:column; align-items:flex-start; }
+}
 </style>
+<script>
+function confirmDelete(id){
+    if(confirm("Are you sure you want to delete this property?")){
+        window.location.href = "?delete_id=" + id;
+    }
+}
+</script>
 </head>
 <body>
 
 <header>My Properties</header>
-<?php if($message) echo "<p class='message'>$message</p>"; ?>
-
 <div class="container">
-<?php if ($properties->num_rows > 0): ?>
-    <?php while ($row = $properties->fetch_assoc()): ?>
-        <div class="card">
-            <img src="get_image.php?id=<?php echo $row['id']; ?>" alt="Property">
-            <div class="card-body">
-                <h3><?php echo htmlspecialchars($row['title']); ?></h3>
-                <p>📍 <?php echo htmlspecialchars($row['location']); ?></p>
-                <p>💲 $<?php echo $row['price']; ?></p>
-                <p>📞 <?php echo htmlspecialchars($row['contact']); ?></p>
-                <div class="card-actions">
-                    <a href="edit_property.php?id=<?php echo $row['id']; ?>" class="btn btn-edit">✏️ Edit</a>
-                    <a href="my_properties.php?delete=<?php echo $row['id']; ?>" onclick="return confirm('Delete this property?')" class="btn btn-delete">🗑️ Delete</a>
-                </div>
-            </div>
-        </div>
-    <?php endwhile; ?>
-<?php else: ?>
-    <p style="text-align:center; color:#555;">You have not uploaded any properties yet.</p>
-<?php endif; ?>
-</div>
+    <?php if($message) echo "<p class='message'>$message</p>"; ?>
 
-<a href="landlord_dashboard.php" class="back">⬅ Back to Dashboard</a>
+    <div class="filter-bar">
+        <form method="GET">
+            <select name="status">
+                <option value="all" <?= $status_filter=='all'?'selected':'' ?>>All</option>
+                <option value="pending" <?= $status_filter=='pending'?'selected':'' ?>>Pending</option>
+                <option value="approved" <?= $status_filter=='approved'?'selected':'' ?>>Approved</option>
+                <option value="taken" <?= $status_filter=='taken'?'selected':'' ?>>Taken</option>
+                <option value="inactive" <?= $status_filter=='inactive'?'selected':'' ?>>Inactive</option>
+            </select>
+            <input type="text" name="search" placeholder="Search title or location..." value="<?= htmlspecialchars($search) ?>">
+            <button type="submit">Apply</button>
+        </form>
+    </div>
+
+    <?php if($result && $result->num_rows>0): ?>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Title</th>
+                <th>Location</th>
+                <th>Price</th>
+                <th>Bedrooms</th>
+                <th>Bathrooms</th>
+                <th>Submitted On</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php while($row = $result->fetch_assoc()): ?>
+            <tr>
+                <td data-label="ID"><?= $row['id'] ?></td>
+                <td data-label="Title"><?= htmlspecialchars($row['title']) ?></td>
+                <td data-label="Location"><?= htmlspecialchars($row['location']) ?></td>
+                <td data-label="Price">$<?= number_format($row['price'],2) ?></td>
+                <td data-label="Bedrooms"><?= $row['bedrooms'] ?></td>
+                <td data-label="Bathrooms"><?= $row['bathrooms'] ?></td>
+                <td data-label="Submitted On"><?= $row['created_at'] ?></td>
+                <td data-label="Status"><span class="status-badge <?= $row['status'] ?>"><?= ucfirst($row['status']) ?></span></td>
+                <td data-label="Actions">
+                    <a href="edit_property.php?id=<?= $row['id'] ?>" class="btn edit">Edit</a>
+                    <a href="javascript:void(0)" onclick="confirmDelete(<?= $row['id'] ?>)" class="btn delete">Delete</a>
+                </td>
+            </tr>
+            <?php endwhile; ?>
+        </tbody>
+    </table>
+    <?php else: ?>
+        <p style="text-align:center; color:#555;">No properties found.</p>
+    <?php endif; ?>
+
+    <a href="landlord_dashboard.php" class="back">⬅ Back to Dashboard</a>
+</div>
 
 </body>
 </html>
