@@ -2,137 +2,109 @@
 session_start();
 include "db.php";
 
-// Ensure only landlords can access
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'landlord') {
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'landlord') {
     header("Location: login.php");
     exit;
 }
 
 $landlord_id = $_SESSION['user_id'];
 
-// Handle new message
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST['message'])) {
-    $property_id = intval($_POST['property_id']);
-    $receiver_id = intval($_POST['receiver_id']);
-    $message = trim($_POST['message']);
+if (!isset($_GET['property_id']) || !isset($_GET['with'])) {
+    echo "<p>Invalid chat request.</p>"; exit;
+}
 
-    if ($message !== "") {
-        $stmt = $conn->prepare("INSERT INTO messages (property_id, sender_id, receiver_id, message, created_at) VALUES (?, ?, ?, ?, NOW())");
-        $stmt->bind_param("iiis", $property_id, $landlord_id, $receiver_id, $message);
+$property_id = intval($_GET['property_id']);
+$renter_id   = intval($_GET['with']);
+
+// Fetch property
+$sql = "SELECT * FROM properties WHERE id=? AND landlord_id=? AND status='approved' LIMIT 1";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("ii", $property_id, $landlord_id);
+$stmt->execute();
+$property = $stmt->get_result()->fetch_assoc();
+if(!$property){ echo "<p>Property not found.</p>"; exit; }
+
+// Handle sending messages
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['message'])) {
+    $msg = trim($_POST['message']);
+    if($msg!==''){
+        $stmt = $conn->prepare("INSERT INTO messages (property_id,sender_id,receiver_id,message,created_at) VALUES (?,?,?,?,NOW())");
+        $stmt->bind_param("iiii", $property_id, $landlord_id, $renter_id, $msg);
         $stmt->execute();
     }
-
-    header("Location: landlord_chat.php?property_id=$property_id&with=$receiver_id");
     exit;
 }
 
-// Get chat property and renter
-$property_id = intval($_GET['property_id'] ?? 0);
-$chat_with = intval($_GET['with'] ?? 0);
-
-if ($property_id && $chat_with) {
-    // Fetch property details
-    $stmt = $conn->prepare("SELECT title FROM properties WHERE id=? AND owner_id=? LIMIT 1");
-    $stmt->bind_param("ii", $property_id, $landlord_id);
-    $stmt->execute();
-    $property = $stmt->get_result()->fetch_assoc();
-
-    if (!$property) die("Property not found or you don't own it.");
-
-    // Fetch chat messages
-    $sql = "SELECT m.*, u.name AS sender_name 
-            FROM messages m
-            JOIN users u ON m.sender_id = u.id
-            WHERE m.property_id=? 
-            AND ((m.sender_id=? AND m.receiver_id=?) OR (m.sender_id=? AND m.receiver_id=?))
-            ORDER BY m.created_at ASC";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("iiiii", $property_id, $landlord_id, $chat_with, $chat_with, $landlord_id);
-    $stmt->execute();
-    $messages = $stmt->get_result();
-} else {
-    // Fetch all approved requests for this landlord
-    $sql = "SELECT r.id AS request_id, r.user_id, r.property_id, r.status, p.title, u.name AS renter_name 
-            FROM requests r
-            JOIN properties p ON r.property_id = p.id
-            JOIN users u ON r.user_id = u.id
-            WHERE p.owner_id=? AND r.status='approved'
-            ORDER BY r.created_at DESC";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("i", $landlord_id);
-    $stmt->execute();
-    $approved_requests = $stmt->get_result();
-}
+// Mark messages from renter as read
+$update = $conn->prepare("UPDATE messages SET read_status=1 WHERE sender_id=? AND receiver_id=? AND property_id=?");
+$update->bind_param("iii", $renter_id, $landlord_id, $property_id);
+$update->execute();
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Landlord Chat - RentConnect</title>
-    <style>
-        body { font-family: Arial, sans-serif; background:#f4f6f9; margin:20px; }
-        h2 { color:#2E7D32; }
-        .chat-box { background:white; padding:20px; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,0.1); height:400px; overflow-y:scroll; }
-        .msg { margin:10px 0; padding:10px; border-radius:8px; max-width:60%; }
-        .me { background:#DCF8C6; margin-left:auto; }
-        .other { background:#E3F2FD; margin-right:auto; }
-        .msg small { display:block; font-size:0.8em; color:#555; margin-top:4px; }
-        form { margin-top:15px; display:flex; gap:10px; }
-        input[type=text] { flex:1; padding:10px; border-radius:6px; border:1px solid #ccc; }
-        button { padding:10px 15px; border:none; border-radius:6px; background:#2196F3; color:white; cursor:pointer; }
-        button:hover { background:#1976D2; }
-        a.back { display:inline-block; margin-bottom:15px; color:#333; text-decoration:none; }
-        table { width:100%; border-collapse:collapse; }
-        th, td { border:1px solid #ccc; padding:8px; text-align:left; }
-        th { background:#f4f4f4; }
-        .button { padding:6px 12px; border-radius:5px; text-decoration:none; background:#2196F3; color:white; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat - <?= htmlspecialchars($property['title']) ?></title>
+<style>
+body { margin:0; font-family:sans-serif; display:flex; flex-direction:column; height:100vh; background:#f0f2f5; }
+.chat-header { background:#075E54; color:white; padding:15px; display:flex; align-items:center; position:sticky; top:0; z-index:10; }
+.chat-header img { width:40px; height:40px; border-radius:50%; margin-right:10px; object-fit:cover; }
+.chat-header h2 { margin:0; font-size:1rem; }
+.chat-box { flex:1; display:flex; flex-direction:column; }
+.messages { flex:1; overflow-y:auto; padding:15px; display:flex; flex-direction:column; }
+.message { margin-bottom:10px; padding:10px 14px; border-radius:20px; max-width:70%; line-height:1.4; font-size:0.95rem; }
+.sent { background:#dcf8c6; align-self:flex-end; border-bottom-right-radius:4px; }
+.received { background:white; align-self:flex-start; border-bottom-left-radius:4px; }
+.chat-input { display:flex; padding:10px; background:white; border-top:1px solid #ddd; }
+.chat-input input { flex:1; padding:12px; border-radius:25px; border:1px solid #ccc; font-size:1rem; outline:none; }
+.chat-input button { margin-left:8px; padding:0 20px; border:none; border-radius:25px; background:#075E54; color:white; font-size:1rem; cursor:pointer; }
+.chat-input button:hover { background:#0a7c66; }
+@media(max-width:600px){ .chat-header h2{ font-size:0.9rem; } .chat-input input, .chat-input button{ font-size:0.9rem; } }
+</style>
 </head>
 <body>
-<a href="landlord_dashboard.php" class="back">⬅ Back to Dashboard</a>
 
-<?php if(isset($property)): ?>
-    <h2>Chat about "<?php echo htmlspecialchars($property['title']); ?>"</h2>
-    <div class="chat-box">
-        <?php if ($messages->num_rows > 0): ?>
-            <?php while ($msg = $messages->fetch_assoc()): ?>
-                <div class="msg <?php echo ($msg['sender_id'] == $landlord_id) ? 'me' : 'other'; ?>">
-                    <b><?php echo htmlspecialchars($msg['sender_name']); ?>:</b><br>
-                    <?php echo nl2br(htmlspecialchars($msg['message'])); ?>
-                    <small><?php echo $msg['created_at']; ?></small>
-                </div>
-            <?php endwhile; ?>
-        <?php else: ?>
-            <p>No messages yet. Start the conversation!</p>
-        <?php endif; ?>
-    </div>
-    <form method="POST">
-        <input type="text" name="message" placeholder="Type your message..." required>
-        <input type="hidden" name="property_id" value="<?php echo $property_id; ?>">
-        <input type="hidden" name="receiver_id" value="<?php echo $chat_with; ?>">
-        <button type="submit">Send</button>
+<div class="chat-header">
+    <img src="fetch_profile.php?user_id=<?= $renter_id ?>" alt="Profile">
+    <h2><?= htmlspecialchars($property['title']) ?> - <?= htmlspecialchars($_GET['with_name'] ?? 'Renter') ?></h2>
+</div>
+
+<div class="chat-box">
+    <div id="messages" class="messages">Loading...</div>
+
+    <form id="chatForm" class="chat-input">
+        <input type="text" id="messageInput" placeholder="Type a message..." required>
+        <button type="submit">➤</button>
     </form>
-<?php else: ?>
-    <h2>Approved Requests</h2>
-    <?php if ($approved_requests->num_rows > 0): ?>
-        <table>
-            <tr>
-                <th>Property</th>
-                <th>Renter</th>
-                <th>Action</th>
-            </tr>
-            <?php while ($row = $approved_requests->fetch_assoc()): ?>
-                <tr>
-                    <td><?php echo htmlspecialchars($row['title']); ?></td>
-                    <td><?php echo htmlspecialchars($row['renter_name']); ?></td>
-                    <td>
-                        <a href="landlord_chat.php?property_id=<?php echo $row['property_id']; ?>&with=<?php echo $row['user_id']; ?>" class="button">💬 Chat</a>
-                    </td>
-                </tr>
-            <?php endwhile; ?>
-        </table>
-    <?php else: ?>
-        <p>No approved requests yet.</p>
-    <?php endif; ?>
-<?php endif; ?>
+</div>
+
+<script>
+function loadMessages(){
+    fetch("fetch_messages.php?property_id=<?= $property_id ?>&with=<?= $renter_id ?>")
+    .then(res=>res.text())
+    .then(data=>{
+        const msgBox = document.getElementById("messages");
+        const atBottom = msgBox.scrollTop + msgBox.clientHeight >= msgBox.scrollHeight - 50;
+        msgBox.innerHTML = data;
+        if(atBottom) msgBox.scrollTop = msgBox.scrollHeight;
+    });
+}
+
+// Send message
+document.getElementById("chatForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    let formData = new FormData();
+    formData.append('message', document.getElementById("messageInput").value);
+    fetch("landlord_chat_room.php?property_id=<?= $property_id ?>&with=<?= $renter_id ?>", {
+        method:'POST', body:formData
+    }).then(()=>{ document.getElementById("messageInput").value=''; loadMessages(); });
+});
+
+// Auto-refresh every 3s
+setInterval(loadMessages, 3000);
+loadMessages();
+</script>
+
 </body>
 </html>

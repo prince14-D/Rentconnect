@@ -175,7 +175,10 @@ table th { background:#f2f2f2; color:#333; }
                         <h4><?php echo htmlspecialchars($row['title']); ?></h4>
                         <p>📍 <?php echo htmlspecialchars($row['location']); ?></p>
                         <p>💲 $<?php echo number_format($row['price']); ?></p>
+                        
+                        <a href="?request_property=<?php echo $row['id']; ?>" class="button view">Request to Rent</a>
                         <a href="javascript:void(0)" class="button view" onclick="openModal(<?php echo $row['id']; ?>)">View Details</a>
+
                     </div>
                 </div>
             <?php endwhile; ?>

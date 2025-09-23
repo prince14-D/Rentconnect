@@ -2,30 +2,45 @@
 session_start();
 include "db.php";
 
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'landlord') {
-    http_response_code(403);
-    exit;
+if (!isset($_SESSION['user_id'])) {
+    exit("You must log in.");
 }
 
-$landlord_id = $_SESSION['user_id'];
-$property_id = intval($_GET['property_id']);
-$renter_id = intval($_GET['renter_id']);
+$current_user = $_SESSION['user_id'];
 
-$stmt = $conn->prepare("
-    SELECT m.*, u.name AS sender_name
-    FROM messages m
-    JOIN users u ON m.sender_id = u.id
-    WHERE m.property_id=? AND ((m.sender_id=? AND m.receiver_id=?) OR (m.sender_id=? AND m.receiver_id=?))
-    ORDER BY m.created_at ASC
-");
-$stmt->bind_param("iiiii", $property_id, $landlord_id, $renter_id, $renter_id, $landlord_id);
+if (!isset($_GET['property_id']) || !isset($_GET['with'])) {
+    exit("Invalid request.");
+}
+
+$property_id = intval($_GET['property_id']);
+$with_user   = intval($_GET['with']);
+
+// ✅ Get messages between current user and $with_user for this property
+$sql = "SELECT m.*, u.name 
+        FROM messages m
+        JOIN users u ON m.sender_id = u.id
+        WHERE m.property_id = ?
+          AND ((m.sender_id = ? AND m.receiver_id = ?) 
+           OR (m.sender_id = ? AND m.receiver_id = ?))
+        ORDER BY m.created_at ASC";
+
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("iiiii", $property_id, $current_user, $with_user, $with_user, $current_user);
 $stmt->execute();
 $result = $stmt->get_result();
 
-$messages = [];
-while ($row = $result->fetch_assoc()) {
-    $messages[] = $row;
+if ($result->num_rows === 0) {
+    echo "<p style='text-align:center;color:#777;'>No messages yet. Start the conversation 👋</p>";
 }
 
-header('Content-Type: application/json');
-echo json_encode($messages);
+while ($row = $result->fetch_assoc()) {
+    $isSent = ($row['sender_id'] == $current_user);
+    $class = $isSent ? "sent" : "received";
+
+    echo "<div class='message $class'>";
+    echo nl2br(htmlspecialchars($row['message']));
+    echo "<div class='time'>" . date("H:i", strtotime($row['created_at'])) . "</div>";
+    echo "</div>";
+}
+$stmt->close();
+?>
