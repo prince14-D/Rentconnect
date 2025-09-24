@@ -186,6 +186,7 @@ unset($_SESSION['prefill_email']); // clear after showing once
 
             <button type="submit">Login</button>
         </form>
+        <p><a href="forgot-password.php">Forgot Password?</a></p>
 
         <div class="alt">
             Don't have an account? <a href="signup.php">Sign Up</a>
