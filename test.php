@@ -1,10 +1,8 @@
 <?php
 $host = "localhost";
-$user = "rentuser";
-$pass = "StrongPassword123!"; // use your password
+$user = "root";        // XAMPP default MySQL user
+$pass = "";            // leave empty unless you set a password
 $db   = "rentconnect_db";
-
-$conn = new mysqli("localhost", "root", "your_password", "rentconnect");
 
 $conn = new mysqli($host, $user, $pass, $db);
 
