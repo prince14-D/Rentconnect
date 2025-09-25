@@ -174,22 +174,22 @@
     <div class="service-card">
       <i class="fas fa-search"></i>
       <h3>Smart Search</h3>
-      <p>Find homes easily with powerful filters for price, location, and property type.</p>
+      <p>Find homes easily with powerful filters for pricing, locations, and properties types.</p>
     </div>
     <div class="service-card">
       <i class="fas fa-handshake"></i>
       <h3>Secure Connections</h3>
-      <p>Direct communication between renters and landlords, managed securely on our platform.</p>
+      <p>Direct communication between renters and landlords, manage securely on our platform.</p>
     </div>
     <div class="service-card">
       <i class="fas fa-mobile-alt"></i>
       <h3>Mobile Friendly</h3>
-      <p>Access RentConnect anytime, anywhere with a smooth mobile experience.</p>
+      <p>Access RentConnect anytime, anywhere with our smooth mobile experiences.</p>
     </div>
     <div class="service-card">
       <i class="fas fa-headset"></i>
       <h3>Support</h3>
-      <p>Our support team is always ready to assist you with property inquiries or technical issues.</p>
+      <p>Our support team is always ready to assist you with properties inquiries or technical supports.</p>
     </div>
   </div>
 </div>
@@ -201,7 +201,7 @@
     <div class="why-item">
       <i class="fas fa-check-circle"></i>
       <h3>Trusted Platform</h3>
-      <p>All listings and landlords are verified, ensuring a safe and transparent experience.</p>
+      <p>All listings and landlords are verified, ensuring safe and transparent experiences.</p>
     </div>
     <div class="why-item">
       <i class="fas fa-bolt"></i>

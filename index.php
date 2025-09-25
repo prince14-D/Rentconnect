@@ -102,11 +102,66 @@ $properties = $stmt->get_result();
           .hero-carousel .caption p { font-size: 1em; }
         }
 
-        /* === Search Box === */
-        .search-box { background: #fff; padding: 25px; border-radius: 14px; width: 90%; max-width: 950px; margin: -70px auto 40px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; }
-        .search-box input { flex: 1 1 200px; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1em; }
-        .search-box button { padding: 12px 25px; background: #2E7D32; color: white; border: none; border-radius: 8px; font-size: 1em; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        .search-box button:hover { background: #1b5e20; }
+       .search-box {
+  background: #fff;
+  padding: 15px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  max-width: 700px;
+  margin: 20px auto;
+}
+
+.search-box form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.search-box .form-group {
+  flex: 1 1 150px;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 15px;
+  transition: 0.2s ease;
+}
+
+.search-box input:focus {
+  border-color: #4a90e2;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(74,144,226,0.2);
+}
+
+.search-box button {
+  padding: 12px 20px;
+  background: #4a90e2;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.search-box button:hover {
+  background: #357abd;
+}
+
+/* Mobile friendly */
+@media (max-width: 300px) {
+  .search-box form {
+    flex-direction: column;
+  }
+  
+  .search-box button {
+    width: 100%;
+  }
+}
 
         /* === Properties Section === */
         .section { padding: 50px 20px; text-align: center; }
@@ -258,12 +313,33 @@ nav .dropbtn:hover {
 
 <!-- Search Box -->
 <div class="search-box">
-    <form method="get" action="">
-        <input type="text" name="location" placeholder="Enter location" value="<?php echo htmlspecialchars($search_location); ?>">
-        <input type="number" name="min_price" placeholder="Min Price" value="<?php echo $min_price ?: ''; ?>">
-        <input type="number" name="max_price" placeholder="Max Price" value="<?php echo $max_price ?: ''; ?>">
-        <button type="submit">Search</button>
-    </form>
+  <form method="get" action="">
+    <div class="form-group">
+      <input 
+        type="text" 
+        name="location" 
+        placeholder="Enter location" 
+        value="<?php echo htmlspecialchars($search_location); ?>"
+      >
+    </div>
+    <div class="form-group">
+      <input 
+        type="number" 
+        name="min_price" 
+        placeholder="Min Price" 
+        value="<?php echo $min_price ?: ''; ?>"
+      >
+    </div>
+    <div class="form-group">
+      <input 
+        type="number" 
+        name="max_price" 
+        placeholder="Max Price" 
+        value="<?php echo $max_price ?: ''; ?>"
+      >
+    </div>
+    <button type="submit">Search</button>
+  </form>
 </div>
 
 <!-- Latest Properties -->
@@ -317,7 +393,7 @@ nav .dropbtn:hover {
     <div class="features">
         <div class="feature">
             <h4>For Renters</h4>
-            <p>Browse verified homes and apartments, save favorites, and send rental requests securely.</p>
+            <p>Browse verified homes and apartments, save your favorites, and send rental requests securely.</p>
         </div>
         <div class="feature">
             <h4>For Landlords</h4>
@@ -332,7 +408,7 @@ nav .dropbtn:hover {
 
 <!-- Footer -->
 <footer>
-    <p>&copy; <?php echo date("Y"); ?> RentConnect Liberia. All rights reserved. | <a href="contact.php">Contact Us</a></p>
+    <p>&copy; <?php echo date("Y"); ?> RentConnect Liberia | All rights reserved. | <a href="contact.php">Contact Us</a></p>
 </footer>
 
 <script>

@@ -103,6 +103,23 @@ unset($_SESSION['prefill_email']); // clear after showing once
         .login-box button:hover {
             background: #43a047;
         }
+        .forgot-password {
+            margin-top: 15px;
+            text-align: center;
+        }
+        .forgot-password a {
+            display: inline-block;
+            padding: 10px 18px;
+            background: #FF9800;
+            color: white;
+            border-radius: 6px;
+            font-size: 0.95em;
+            text-decoration: none;
+            transition: background 0.3s ease;
+        }
+        .forgot-password a:hover {
+            background: #e68900;
+        }
         .message {
             margin: 15px 0;
             text-align: center;
@@ -157,6 +174,10 @@ unset($_SESSION['prefill_email']); // clear after showing once
                 font-size: 1em;
                 padding: 10px;
             }
+            .forgot-password a {
+                font-size: 0.9em;
+                padding: 8px 14px;
+            }
             .back-home a {
                 font-size: 0.95em;
                 padding: 8px 16px;
@@ -186,7 +207,11 @@ unset($_SESSION['prefill_email']); // clear after showing once
 
             <button type="submit">Login</button>
         </form>
-        <p><a href="forgot-password.php">Forgot Password?</a></p>
+
+        <!-- ✅ Upgraded Forget Password UI -->
+        <div class="forgot-password">
+            <a href="forgot-password.php">Forgot Password?</a>
+        </div>
 
         <div class="alt">
             Don't have an account? <a href="signup.php">Sign Up</a>

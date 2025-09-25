@@ -81,18 +81,72 @@ nav a:hover, nav .dropbtn:hover {
 .dropdown-content a:hover { background: #f5f5f5; color: #2E7D32; }
 .dropdown.active .dropdown-content { display: block; }
 
-/* Hamburger Menu */
-.hamburger {
+/* === Hamburger / Menu Toggle === */
+.menu-toggle {
   display: none;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   cursor: pointer;
+  background: none;
+  border: none;
+  padding: 6px;
+  z-index: 1100;
 }
-.hamburger div {
-  width: 25px;
+
+.menu-toggle div {
+  width: 26px;
   height: 3px;
   background-color: #2E7D32;
   border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+/* Animate into X */
+.menu-toggle.open div:nth-child(1) {
+  transform: rotate(45deg) translate(5px, 6px);
+}
+.menu-toggle.open div:nth-child(2) {
+  opacity: 0;
+}
+.menu-toggle.open div:nth-child(3) {
+  transform: rotate(-45deg) translate(6px, -6px);
+}
+
+/* Mobile styles */
+@media (max-width: 768px) {
+  nav { 
+    display: none; 
+    flex-direction: column; 
+    position: absolute; 
+    top: 60px; 
+    right: 20px; 
+    background: #fff; 
+    padding: 15px; 
+    border-radius: 8px; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+    width: 220px;
+  }
+  nav.active { display: flex; }
+  .menu-toggle { display: flex; }
+
+  nav a, nav .dropbtn, .upload-btn { 
+    width: 100%; 
+    text-align: left; 
+    padding: 12px 20px; 
+  }
+
+  /* Dropdown becomes accordion */
+  .dropdown-content {
+    position: relative;
+    top: 0;
+    left: 0;
+    width: 100%;
+    box-shadow: none;
+    border-radius: 0;
+    display: none;
+    padding-left: 10px;
+  }
+  .dropdown.active .dropdown-content { display: block; }
 }
 
 /* === Banner === */
@@ -137,7 +191,7 @@ nav a:hover, nav .dropbtn:hover {
   transition: transform 0.3s ease;
   opacity:0; transform:translateY(20px);
 }
-.team-member:hover { transform: translateY(-6px); }
+.team-member:hover { transform: translateY(-6px) scale(1.03); box-shadow:0 6px 18px rgba(0,0,0,0.12); }
 .team-member.visible { opacity:1; transform:translateY(0); }
 .team-member img {
   width: 100px;
@@ -155,33 +209,21 @@ nav a:hover, nav .dropbtn:hover {
 footer { background: #222; color: #ccc; text-align: center; padding: 20px; margin-top: 40px; }
 footer a { color: #FF9800; text-decoration: none; }
 footer a:hover { text-decoration: underline; }
-
-/* === Responsive Styles === */
-@media (max-width: 768px){
-  nav { 
-    position: absolute; top: 60px; right:0; 
-    background:#fff; flex-direction:column; width:220px; gap:0; border-radius:8px;
-    box-shadow:0 4px 12px rgba(0,0,0,0.1); display:none;
-  }
-  nav.active { display:flex; }
-  nav a, nav .dropbtn, .upload-btn { width:100%; text-align:left; padding:12px 20px; }
-  .hamburger { display:flex; }
-}
 </style>
 </head>
 <body>
 
 <header>
   <h1><a href="index.php">RentConnect</a></h1>
-  <div class="hamburger" onclick="toggleMenu(this)">
+  <button class="menu-toggle" aria-expanded="false" aria-controls="navMenu" onclick="toggleMenu(this)">
     <div></div><div></div><div></div>
-  </div>
+  </button>
   <nav id="navMenu">
     <a href="about.php">About Us</a>
     <a href="services.php">Services</a>
     <a href="contact.php">Contact</a>
     <div class="dropdown">
-      <button class="dropbtn" onclick="toggleDropdown(event)">Account ▾</button>
+      <button class="dropbtn" onclick="toggleDropdown(event)">Account</button>
       <div class="dropdown-content">
         <a href="login.php">Login</a>
         <a href="signup.php">Sign Up</a>
@@ -223,18 +265,21 @@ footer a:hover { text-decoration: underline; }
 </div>
 
 <footer>
-  <p>&copy; <?php echo date("Y"); ?> RentConnect Liberia. All rights reserved. | <a href="contact.php">Contact Us</a></p>
+  <p>&copy; <?php echo date("Y"); ?> RentConnect Liberia | All rights reserved. | <a href="contact.php">Contact Us</a></p>
 </footer>
 
 <script>
 // Dropdown & Mobile Menu
 function toggleDropdown(e){
   e.preventDefault();
-  e.target.closest(".dropdown").classList.toggle("active");
+  const dropdown = e.target.closest(".dropdown");
+  dropdown.classList.toggle("active");
 }
 function toggleMenu(menu){
-  document.getElementById('navMenu').classList.toggle('active');
-  menu.classList.toggle('open');
+  const nav = document.getElementById('navMenu');
+  const isOpen = menu.classList.toggle('open');
+  nav.classList.toggle('active');
+  menu.setAttribute('aria-expanded', isOpen);
 }
 
 // Scroll animations
