@@ -136,7 +136,7 @@
     <!-- Dropdown -->
     <!-- Dropdown -->
 <div class="dropdown">
-  <button class="dropbtn" onclick="toggleDropdown(event)">Account ▾</button>
+  <button class="dropbtn"  onclick="toggleDropdown(event)">Account ▾</button>
   <div class="dropdown-content">
     <a href="login.php" onclick="closeMenu()">Login</a>
     <a href="signup.php" onclick="closeMenu()">Sign Up</a>
@@ -217,7 +217,7 @@
 </section>
 
 <footer>
-  <p>&copy; <?php echo date("Y"); ?> RentConnect Liberia. All rights reserved. | <a href="contact.php">Contact Us</a></p>
+  <p>&copy; <?php echo date("Y"); ?> RentConnect Liberia | All rights reserved. | <a href="contact.php">Contact Us</a></p>
 </footer>
 
 <script>
