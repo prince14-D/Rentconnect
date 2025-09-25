@@ -7,131 +7,226 @@
   <title>Contact Us - RentConnect</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    body { font-family: 'Segoe UI', Tahoma, sans-serif; margin:0; background:#f5f7fb; color:#333; }
+  body { 
+    font-family: 'Segoe UI', Tahoma, sans-serif; 
+    margin: 0; 
+    background: #f5f7fb; 
+    color: #333; 
+}
 
-    /* Header */
-    header {
-      background: #fff; padding: 0px 0px;
-      display: flex; justify-content: space-between; align-items: center;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-      position: sticky; top: 0; z-index: 1000;
-    }
-    header h1 a { text-decoration: none; color: #2E7D32; font-size: 0.8em; font-weight: bold; }
+/* Header */
+header {
+    background: #fff;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+header h1 a {
+    text-decoration: none;
+    color: #2E7D32;
+    font-size: 1.2em;
+    font-weight: bold;
+}
 
+/* Nav Links */
+nav {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+nav a, nav .dropbtn {
+    text-decoration: none;
+    color: #444;
+    font-weight: 500;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: 0.3s;
+}
+nav a:hover, nav .dropbtn:hover {
+    color: #2E7D32;
+    background: #f0f0f0;
+}
+
+/* Dropdown */
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+.dropdown-content {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: #fff;
+    min-width: 160px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-radius: 6px;
+    z-index: 999;
+}
+.dropdown-content a {
+    display: block;
+    padding: 10px 14px;
+    text-decoration: none;
+    color: #444;
+    font-size: 0.95em;
+}
+.dropdown-content a:hover {
+    background: #f5f5f5;
+    color: #2E7D32;
+}
+.dropdown.active .dropdown-content {
+    display: block;
+}
+
+/* Upload Button */
+.upload-btn {
+    background: #2E7D32;
+    color: #fff;
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: 0.3s;
+}
+.upload-btn:hover {
+    background: #1b5e20;
+    transform: translateY(-2px);
+}
+
+/* Hamburger for Mobile */
+.hamburger {
+    display: none;
+    flex-direction: column;
+    cursor: pointer;
+    gap: 4px;
+}
+.hamburger div {
+    width: 25px;
+    height: 3px;
+    background: #2E7D32;
+    border-radius: 2px;
+}
+
+/* Mobile Nav */
+@media(max-width:768px){
     nav {
-      display: flex; gap: 20px; align-items: center;
-    }
-    nav a, nav .dropbtn {
-      text-decoration: none; color: #444; font-weight: 500;
-      padding: 8px 14px; border-radius: 6px; transition: 0.3s; cursor: pointer;
-    }
-    nav a:hover, nav .dropbtn:hover { background: #f0f0f0; color: #2E7D32; }
-    .upload-btn { background: #2E7D32; color: #fff; }
-    .upload-btn:hover { background: #1b5e20; color: #fff; }
-
-    /* Dropdown */
-    .dropdown { position: relative; display: inline-block; }
-    .dropdown-content {
-      display: none; position: absolute; top: 100%; left: 0;
-      background: #fff; min-width: 160px; border-radius: 6px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      overflow: hidden; z-index: 999;
-    }
-    .dropdown-content a {
-      display: block; padding: 10px; color: #444; font-size: 0.95em;
-    }
-    .dropdown-content a:hover { background: #f5f5f5; color: #2E7D32; }
-    @media (min-width: 769px) { .dropdown:hover .dropdown-content { display: block; } }
-    .dropdown.active .dropdown-content { display: block; }
-
-    /* Hamburger (mobile menu button) */
-    .hamburger {
-      display: none; flex-direction: column; cursor: pointer; gap: 4px;
-    }
-    .hamburger div {
-      width: 25px; height: 3px; background: #333; border-radius: 2px;
-    }
-
-    /* Mobile nav */
-    @media (max-width: 768px) {
-      nav {
         display: none;
         flex-direction: column;
+        position: absolute;
+        top: 60px;
+        right: 10px;
         background: #fff;
-        position: absolute; top: 65px; right: 0; width: 220px;
+        padding: 15px;
+        width: 220px;
+        border-radius: 8px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        padding: 10px;
-      }
-      nav.show { display: flex; }
-      .hamburger { display: flex; }
-      nav a, nav .dropbtn { width: 100%; text-align: left; padding: 12px; }
-      .dropdown-content { position: relative; box-shadow: none; }
+        z-index: 999;
     }
-
-    /* Banner */
-    .banner {
-      background: linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.5)), url('images/home-banner-2.png') center/cover no-repeat;
-      color: #fff; text-align: center; padding: 80px 20px;
+    nav.show {
+        display: flex;
     }
-    .banner h2 { font-size: 2.6em; font-weight: 700; margin-bottom: 10px; }
-    .banner p { font-size: 1.1em; opacity: 0.9; }
-
-    /* Contact Section */
-    .contact-section {
-      max-width: 900px; margin: 50px auto; padding: 0 20px;
-      display: flex; flex-direction: column; align-items: center; gap: 40px;
+    nav a, nav .dropbtn {
+        width: 100%;
+        text-align: left;
+        padding: 12px;
+        margin-bottom: 5px;
+        border-radius: 8px;
     }
-
-    .contact-cards {
-      display: flex; flex-wrap: wrap; justify-content: center; gap: 30px;
-      width: 100%;
+    .dropdown-content {
+        position: relative;
+        box-shadow: none;
+        background: #f9f9f9;
+        margin-top: 5px;
     }
-
-    .contact-info, .contact-form {
-      background:#fff; padding:30px; border-radius:12px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.08); flex: 1 1 350px;
+    .hamburger {
+        display: flex;
     }
+}
 
-    .contact-info h3, .contact-form h3 { color:#2E7D32; margin-bottom:15px; }
-    .contact-info p { margin: 8px 0; font-size:0.95em; }
-    .contact-info a { color:#2E7D32; text-decoration:none; }
-    .contact-info a:hover { text-decoration:underline; }
-    .contact-info .social { margin-top:15px; }
-    .contact-info .social a { margin-right:12px; font-size:22px; color:#2E7D32; transition:0.3s; }
-    .contact-info .social a:hover { color:#1b5e20; }
 
-    .contact-form input, .contact-form textarea {
-      width:100%; padding:14px; margin:10px 0;
-      border:1px solid #ddd; border-radius:8px; font-size:1em;
-      transition:0.3s;
-    }
-    .contact-form input:focus, .contact-form textarea:focus { border-color: #2E7D32; outline:none; }
 
-    .contact-form textarea { resize:none; height:140px; }
-    .contact-form button {
-      background:#2E7D32; color:#fff; border:none;
-      padding:14px 25px; border-radius:8px;
-      font-size:1em; cursor:pointer; transition:0.3s;
-    }
-    .contact-form button:hover { background:#1b5e20; }
+/* Banner */
+.banner {
+    background: linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.5)), url('images/home-banner-2.png') center/cover no-repeat;
+    color: #fff; 
+    text-align: center; 
+    padding: 80px 20px;
+}
+.banner h2 { font-size: 2.6em; font-weight: 700; margin-bottom: 10px; }
+.banner p { font-size: 1.1em; opacity: 0.9; }
 
-    /* Footer */
-    footer {
-      background:#222; color:#ccc; text-align:center;
-      padding:20px; margin-top:40px;
-    }
-    footer a { color:#FF9800; text-decoration:none; }
-    footer a:hover { text-decoration:underline; }
+/* Contact Section */
+.contact-section {
+    max-width: 900px; 
+    margin: 50px auto; 
+    padding: 0 20px;
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    gap: 40px;
+}
+.contact-cards {
+    display: flex; 
+    flex-wrap: wrap; 
+    justify-content: center; 
+    gap: 30px; 
+    width: 100%;
+}
+.contact-info, .contact-form {
+    background:#fff; 
+    padding:30px; 
+    border-radius:12px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.08); 
+    flex: 1 1 350px;
+}
+.contact-info h3, .contact-form h3 { color:#2E7D32; margin-bottom:15px; }
+.contact-info p { margin: 8px 0; font-size:0.95em; }
+.contact-info a { color:#2E7D32; text-decoration:none; }
+.contact-info a:hover { text-decoration:underline; }
+.contact-info .social { margin-top:15px; }
+.contact-info .social a { margin-right:12px; font-size:22px; color:#2E7D32; transition:0.3s; }
+.contact-info .social a:hover { color:#1b5e20; }
 
-    /* Google Maps */
-    .map-container {
-      width: 100%; height: 300px; border-radius:12px; overflow:hidden;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-    }
+.contact-form input, .contact-form textarea {
+    width:100%; padding:14px; margin:10px 0;
+    border:1px solid #ddd; border-radius:8px; font-size:1em;
+    transition:0.3s;
+}
+.contact-form input:focus, .contact-form textarea:focus { border-color: #2E7D32; outline:none; }
+.contact-form textarea { resize:none; height:140px; }
+.contact-form button {
+    background:#2E7D32; color:#fff; border:none;
+    padding:14px 25px; border-radius:8px;
+    font-size:1em; cursor:pointer; transition:0.3s;
+}
+.contact-form button:hover { background:#1b5e20; }
 
-    @media(max-width:768px){
-      .contact-cards { flex-direction: column; }
-    }
+/* Footer */
+footer {
+    background:#222; color:#ccc; text-align:center;
+    padding:20px; margin-top:40px;
+}
+footer a { color:#FF9800; text-decoration:none; }
+footer a:hover { text-decoration:underline; }
+
+/* Google Maps */
+.map-container {
+    width: 100%; height: 300px; border-radius:12px; overflow:hidden;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+}
+
+/* Responsive contact cards */
+@media(max-width:768px){
+    .contact-cards { flex-direction: column; }
+}
 
   </style>
 </head>
@@ -179,7 +274,7 @@
   <div class="contact-cards">
     <!-- Info -->
     <div class="contact-info">
-      <h3>📍 Our Office</h3>
+      <h3>Our Office</h3>
       <p>Monrovia, Liberia</p>
       <p><strong>Email:</strong> <a href="mailto:support@rentconnect.com">support@rentconnect.com</a></p>
       <p><strong>Phone:</strong> +231-888-272-360</p>
@@ -215,24 +310,29 @@
 </section>
 
 <footer>
-  <p>&copy; <?php echo date("Y"); ?> RentConnect Liberia. All rights reserved. | <a href="services.php">Our Services</a></p>
+  <p>&copy; <?php echo date("Y"); ?> RentConnect Liberia | All rights reserved. | <a href="services.php">Our Services</a></p>
 </footer>
 
 <script>
 function toggleDropdown(event) {
-  event.preventDefault();
-  const dropdown = event.target.closest(".dropdown");
-  dropdown.classList.toggle("active");
+    event.preventDefault();
+    const dropdown = event.target.closest(".dropdown");
+    dropdown.classList.toggle("active");
 }
+
 function toggleMenu() {
-  document.getElementById("navMenu").classList.toggle("show");
+    document.getElementById("navMenu").classList.toggle("show");
 }
+
 function closeMenu() {
-  document.getElementById("navMenu").classList.remove("show");
-  const dropdowns = document.querySelectorAll(".dropdown");
-  dropdowns.forEach(d => d.classList.remove("active"));
+    document.getElementById("navMenu").classList.remove("show");
+    const dropdowns = document.querySelectorAll(".dropdown");
+    dropdowns.forEach(d => d.classList.remove("active"));
 }
+
 </script>
+
+
 
 </body>
 </html>
