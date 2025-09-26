@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        $message .= "✅ Property uploaded successfully! Waiting for Super Admin approval.";
+        $message .= "✅ Property uploaded successfully! Please Contact admin to approve +231888-272-360.";
     } else {
         $message = "❌ Failed to upload property: " . $stmt->error;
     }
