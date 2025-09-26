@@ -2,22 +2,17 @@
 session_start();
 include "db.php";
 
-// Ensure only renters can access
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'renter') {
     header("Location: login.php");
     exit;
 }
 
 $renter_id = $_SESSION['user_id'];
-$message = '';
+$message = "";
 
-/* -------------------------
-   HANDLE REQUEST SUBMISSION
-------------------------- */
+/* Submit rental request */
 if (isset($_GET['request_property'])) {
     $property_id = intval($_GET['request_property']);
-
-    // Prevent duplicate request
     $check = $conn->prepare("SELECT id FROM requests WHERE user_id=? AND property_id=? LIMIT 1");
     $check->bind_param("ii", $renter_id, $property_id);
     $check->execute();
@@ -33,9 +28,7 @@ if (isset($_GET['request_property'])) {
     }
 }
 
-/* -------------------------
-   HANDLE CANCEL REQUEST
-------------------------- */
+/* Cancel request */
 if (isset($_GET['cancel_request'])) {
     $request_id = intval($_GET['cancel_request']);
     $stmt = $conn->prepare("DELETE FROM requests WHERE id=? AND user_id=? AND status='pending'");
@@ -44,34 +37,26 @@ if (isset($_GET['cancel_request'])) {
     $message = "✅ Request canceled.";
 }
 
-/* -------------------------
-   FETCH AVAILABLE PROPERTIES (only approved)
-------------------------- */
+/* Search & fetch properties */
 $search = $_GET['search'] ?? '';
 $searchTerm = "%$search%";
-
-$sql = "SELECT * FROM properties 
-        WHERE status='approved' 
-          AND (title LIKE ? OR location LIKE ? OR price LIKE ?)
-        ORDER BY created_at DESC";
-
+$sql = "SELECT * FROM properties WHERE status='approved' AND (title LIKE ? OR location LIKE ? OR price LIKE ?) ORDER BY created_at DESC";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("sss", $searchTerm, $searchTerm, $searchTerm);
 $stmt->execute();
 $properties = $stmt->get_result();
 
-/* -------------------------
-   FETCH RENTER REQUESTS
-------------------------- */
+/* Fetch renter's requests */
 $sql = "
-    SELECT r.id AS request_id, r.status, r.created_at,
-           p.id AS property_id, p.title, p.price, p.location, p.owner_id AS landlord_id,
-           u.name AS landlord_name, u.email AS landlord_email
-    FROM requests r
-    JOIN properties p ON r.property_id = p.id
-    JOIN users u ON p.owner_id = u.id
-    WHERE r.user_id=?
-    ORDER BY r.created_at DESC
+SELECT r.id AS request_id, r.status, r.created_at,
+       p.id AS property_id, p.title, p.price, p.location,
+       p.owner_id AS landlord_id,
+       u.name AS landlord_name, u.email AS landlord_email
+FROM requests r
+INNER JOIN properties p ON r.property_id = p.id
+INNER JOIN users u ON p.owner_id = u.id
+WHERE r.user_id = ?
+ORDER BY r.created_at DESC
 ";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("i", $renter_id);
@@ -107,6 +92,7 @@ a.logout { float:right; margin-top:-40px; color:#f44336; text-decoration:none; f
 .button { display:inline-block; padding:10px 16px; border-radius:6px; text-decoration:none; font-size:0.9em; margin-top:8px; text-align:center; }
 .view { background: #4CAF50; color: white; }
 .chat { background: #2196F3; color: white; }
+.cancel { background: #f44336; color:white; }
 
 /* Search Bar */
 .search-bar { text-align:center; margin-bottom:20px; }
@@ -164,8 +150,9 @@ table th { background:#f2f2f2; color:#333; }
                     ?>
                     <div class="carousel">
                         <?php if ($imgs->num_rows > 0): ?>
-                            <?php while ($img = $imgs->fetch_assoc()): ?>
-                                <img src="display_image.php?img_id=<?php echo $img['id']; ?>" alt="Property">
+                            <?php $first = true; while ($img = $imgs->fetch_assoc()): ?>
+                                <img src="display_image.php?img_id=<?php echo $img['id']; ?>" alt="Property" class="<?php echo $first ? 'active' : ''; ?>">
+                                <?php $first = false; ?>
                             <?php endwhile; ?>
                         <?php else: ?>
                             <img src="images/no-image.png" alt="No Image" class="active">
@@ -175,10 +162,8 @@ table th { background:#f2f2f2; color:#333; }
                         <h4><?php echo htmlspecialchars($row['title']); ?></h4>
                         <p>📍 <?php echo htmlspecialchars($row['location']); ?></p>
                         <p>💲 $<?php echo number_format($row['price']); ?></p>
-                        
                         <a href="?request_property=<?php echo $row['id']; ?>" class="button view">Request to Rent</a>
                         <a href="javascript:void(0)" class="button view" onclick="openModal(<?php echo $row['id']; ?>)">View Details</a>
-
                     </div>
                 </div>
             <?php endwhile; ?>
@@ -190,42 +175,142 @@ table th { background:#f2f2f2; color:#333; }
 
 <!-- My Requests -->
 <div class="section">
-    <h3>📋 My Rental Requests</h3>
-    <?php if ($requests->num_rows > 0): ?>
-        <div class="table-wrapper">
-            <table>
-                <tr>
-                    <th>Property</th>
-                    <th>Price</th>
-                    <th>Location</th>
-                    <th>Status</th>
-                    <th>Requested At</th>
-                    <th>Action</th>
-                </tr>
-                <?php while ($row = $requests->fetch_assoc()): ?>
-                    <tr>
-                        <td><?php echo htmlspecialchars($row['title']); ?></td>
-                        <td>$<?php echo number_format($row['price']); ?></td>
-                        <td><?php echo htmlspecialchars($row['location']); ?></td>
-                        <td><?php echo ucfirst($row['status']); ?></td>
-                        <td><?php echo $row['created_at']; ?></td>
-                        <td>
-                            <?php if ($row['status'] == 'pending'): ?>
-                                <a href="?cancel_request=<?php echo $row['request_id']; ?>" class="button cancel">❌ Cancel</a>
-                            <?php elseif ($row['status'] == 'approved'): ?>
-                                <a href="chat.php?request_id=<?php echo $row['request_id']; ?>" class="button chat">💬 Chat Landlord</a>
-                            <?php elseif ($row['status'] == 'rejected'): ?>
-                                <span style="color:#f44336;">❌ Request Rejected</span>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
-                <?php endwhile; ?>
-            </table>
-        </div>
-    <?php else: ?>
-        <p>You have not made any requests yet.</p>
-    <?php endif; ?>
+  <h3>📋 My Requests</h3>
+
+  <?php if ($requests->num_rows > 0): ?>
+    <div class="table-responsive">
+      <table class="styled-table">
+        <thead>
+          <tr>
+            <th>Property</th>
+            <th>Price</th>
+            <th>Location</th>
+            <th>Status</th>
+            <th>Requested At</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php while($row = $requests->fetch_assoc()): ?>
+            <tr>
+              <td><?= htmlspecialchars($row['title']); ?></td>
+              <td>$<?= number_format($row['price']); ?></td>
+              <td><?= htmlspecialchars($row['location']); ?></td>
+              <td>
+                <?php if($row['status']=='pending'): ?>
+                  <span class="badge pending">Pending</span>
+                <?php elseif($row['status']=='approved'): ?>
+                  <span class="badge approved">Approved</span>
+                <?php else: ?>
+                  <span class="badge declined">Declined</span>
+                <?php endif; ?>
+              </td>
+              <td><?= $row['created_at']; ?></td>
+              <td>
+                <?php if($row['status']=='pending'): ?>
+                  <a href="?cancel_request=<?= $row['request_id']; ?>" class="button cancel">❌ Cancel</a>
+                <?php elseif($row['status']=='approved'): ?>
+                  <a href="chat.php?property_id=<?= $row['property_id']; ?>&with=<?= $row['landlord_id']; ?>" class="button chat">💬 Chat</a>
+                <?php else: ?>
+                  <span style="color:#f44336;">❌ Rejected</span>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endwhile; ?>
+        </tbody>
+      </table>
+    </div>
+  <?php else: ?>
+    <p>You have not made any requests yet.</p>
+  <?php endif; ?>
 </div>
+
+<style>
+/* Section */
+.section { margin: 20px 0; }
+
+/* Responsive table wrapper */
+.table-responsive { width: 100%; overflow-x: auto; }
+
+/* Table styling */
+.styled-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  background: #fff;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.styled-table th, .styled-table td {
+  padding: 12px 15px;
+  text-align: center;
+}
+.styled-table thead {
+  background: #007bff;
+  color: #fff;
+}
+.styled-table tr:nth-child(even) { background: #f9f9f9; }
+
+/* Badges */
+.badge {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+.badge.pending { background: #ff9800; color: #fff; }
+.badge.approved { background: #4CAF50; color: #fff; }
+.badge.declined { background: #f44336; color: #fff; }
+
+/* Buttons */
+.button {
+  display: inline-block;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: 0.3s ease;
+}
+.button.cancel {
+  background: #f44336;
+  color: #fff;
+}
+.button.cancel:hover { background: #d32f2f; }
+.button.chat {
+  background: #007bff;
+  color: #fff;
+}
+.button.chat:hover { background: #0056b3; }
+
+/* Mobile responsive – turn table into cards */
+@media (max-width: 768px) {
+  .styled-table thead { display: none; }
+  .styled-table, .styled-table tbody, .styled-table tr, .styled-table td {
+    display: block;
+    width: 100%;
+  }
+  .styled-table tr {
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px;
+    background: #fff;
+  }
+  .styled-table td {
+    text-align: center;
+    padding: 8px 10px;
+    position: relative;
+  }
+  .styled-table td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 10px;
+    font-weight: bold;
+    color: #333;
+  }
+}
+</style>
 
 
 <!-- Property Detail Modal -->

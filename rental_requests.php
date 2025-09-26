@@ -2,52 +2,63 @@
 session_start();
 include "db.php";
 
-// Ensure landlord access
+// Ensure only landlords can access
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'landlord') {
     header("Location: login.php");
     exit;
 }
 
 $landlord_id = $_SESSION['user_id'];
-$message = "";
+$message = '';
 
 /* -------------------------
-   APPROVE / DECLINE REQUEST
+   HANDLE APPROVE / DECLINE
 ------------------------- */
 if (isset($_GET['action'], $_GET['request_id'])) {
     $action = $_GET['action'];
-    $req_id = intval($_GET['request_id']);
-    $new_status = ($action === "approve") ? "approved" : "declined";
+    $request_id = intval($_GET['request_id']);
 
-    // Ensure landlord owns the property
-    $stmt = $conn->prepare("
-        UPDATE requests r
-        JOIN properties p ON r.property_id = p.id
-        SET r.status=?
-        WHERE r.id=? AND p.owner_id=?
-    ");
-    $stmt->bind_param("sii", $new_status, $req_id, $landlord_id);
-    $stmt->execute();
-    $message = $stmt->affected_rows > 0 ? "✅ Request updated!" : "❌ Could not update request.";
+    if ($action === 'approve' || $action === 'decline') {
+        $new_status = ($action === 'approve') ? 'approved' : 'declined';
+
+        $stmt = $conn->prepare("
+            UPDATE requests r
+            JOIN properties p ON r.property_id = p.id
+            SET r.status = ?
+            WHERE r.id = ? AND p.owner_id = ? AND r.status = 'pending'
+        ");
+        $stmt->bind_param("sii", $new_status, $request_id, $landlord_id);
+        $stmt->execute();
+
+        if ($stmt->affected_rows > 0) {
+            $message = "✅ Request $new_status successfully.";
+        } else {
+            $message = "⚠️ Could not update request. Maybe it's already handled or not your property.";
+        }
+    }
 }
 
 /* -------------------------
-   FETCH RENTAL REQUESTS
+   FETCH PROPERTIES & REQUESTS
 ------------------------- */
 $sql = "
-    SELECT r.id AS request_id, r.status, r.created_at,
-           u.id AS renter_id, u.name AS renter_name, u.email AS renter_email,
-           p.id AS property_id, p.title, p.price
-    FROM requests r
-    JOIN users u ON r.user_id = u.id
-    JOIN properties p ON r.property_id = p.id
+    SELECT 
+        p.id AS property_id,
+        p.title AS property_title,
+        p.price,
+        p.location,
+        GROUP_CONCAT(CONCAT(u.name,'|',u.id,'|',r.status,'|',r.id) SEPARATOR '||') AS renters
+    FROM properties p
+    JOIN requests r ON r.property_id=p.id
+    JOIN users u ON r.user_id=u.id
     WHERE p.owner_id = ?
-    ORDER BY r.created_at DESC
+    GROUP BY p.id
+    ORDER BY p.id DESC
 ";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("i", $landlord_id);
 $stmt->execute();
-$requests = $stmt->get_result();
+$results = $stmt->get_result();
 ?>
 
 <!DOCTYPE html>
@@ -55,59 +66,71 @@ $requests = $stmt->get_result();
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rental Requests - RentConnect</title>
+<title>Landlord Requests - RentConnect</title>
 <style>
-body { margin:0; font-family:Arial,sans-serif; background:#f7f9f7; }
-header { background:#2e7d32; color:white; text-align:center; padding:20px; font-size:1.5em; }
-.container { max-width:900px; margin:30px auto; padding:0 15px; display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:20px; }
-.card { background:white; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.1); padding:15px; transition:0.3s; }
-.card:hover { transform:translateY(-5px); box-shadow:0 6px 14px rgba(0,0,0,0.15); }
-.card h3 { margin:0 0 8px; color:#2e7d32; font-size:1.2em; }
+body { font-family: Arial,sans-serif; background:#f4f6f9; margin:0; padding:20px; }
+header { background:#2E7D32; color:white; text-align:center; padding:20px; font-size:1.5em; border-radius:10px; }
+.container { display:grid; grid-template-columns: repeat(auto-fit,minmax(300px,1fr)); gap:20px; margin-top:20px; }
+.card { background:white; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.1); padding:15px; transition:0.3s; }
+.card:hover { transform:translateY(-5px); box-shadow:0 6px 18px rgba(0,0,0,0.15); }
+.card h3 { margin:0 0 8px; font-size:1.2em; color:#2E7D32; }
 .card p { margin:4px 0; color:#555; font-size:0.9em; }
-.status { padding:5px 10px; border-radius:6px; font-size:0.85em; color:white; }
+.status { display:inline-block; padding:4px 10px; border-radius:6px; font-size:0.85em; color:white; margin-right:5px; }
 .pending { background:orange; }
 .approved { background:green; }
 .declined { background:red; }
-.card-actions { margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; }
-.btn { padding:8px 12px; border-radius:6px; font-size:0.9em; text-decoration:none; color:white; }
+.renter-actions { margin-top:8px; display:flex; flex-wrap:wrap; gap:8px; }
+.btn { padding:6px 12px; border-radius:6px; font-size:0.9em; text-decoration:none; color:white; text-align:center; }
 .btn-approve { background:#4CAF50; }
 .btn-decline { background:#f44336; }
-.btn-message { background:#2196F3; }
-.message { text-align:center; color:green; font-weight:bold; margin-bottom:15px; }
-a.back { display:block; margin:20px auto; text-align:center; color:#2e7d32; text-decoration:none; font-weight:bold; }
+.btn-chat { background:#2196F3; }
+.message { text-align:center; font-weight:bold; margin-bottom:15px; color:green; }
+a.back { display:block; margin:20px auto; text-align:center; color:#2E7D32; font-weight:bold; text-decoration:none; }
 @media(max-width:500px){ .container { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
 
-<header>Rental Requests</header>
-<?php if($message) echo "<p class='message'>$message</p>"; ?>
+<header>Requests for Your Properties</header>
+
+<?php if($message): ?>
+<div class="message"><?= htmlspecialchars($message) ?></div>
+<?php endif; ?>
 
 <div class="container">
-<?php if ($requests->num_rows > 0): ?>
-    <?php while ($row = $requests->fetch_assoc()): ?>
+<?php if($results->num_rows > 0): ?>
+    <?php while($row = $results->fetch_assoc()): ?>
         <div class="card">
-            <h3><?php echo htmlspecialchars($row['title']); ?> - $<?php echo $row['price']; ?></h3>
-            <p>👤 <?php echo htmlspecialchars($row['renter_name']); ?> | ✉️ <?php echo htmlspecialchars($row['renter_email']); ?></p>
-            <p>Status: <span class="status <?php echo $row['status']; ?>"><?php echo ucfirst($row['status']); ?></span></p>
-            <div class="card-actions">
-                <?php if ($row['status'] == 'pending'): ?>
-                    <a href="rental_requests.php?action=approve&request_id=<?php echo $row['request_id']; ?>" class="btn btn-approve">✅ Approve</a>
-                    <a href="rental_requests.php?action=decline&request_id=<?php echo $row['request_id']; ?>" class="btn btn-decline">❌ Decline</a>
-                <?php elseif ($row['status'] == 'approved'): ?>
-                    <a href="chat.php?property_id=<?php echo $row['property_id']; ?>&with=<?php echo $row['renter_id']; ?>" class="btn btn-message">💬 Message Renter</a>
-                <?php else: ?>
-                    <span style="color:#777;">No actions available</span>
-                <?php endif; ?>
-            </div>
+            <h3><?= htmlspecialchars($row['property_title']); ?></h3>
+            <p>💲 $<?= number_format($row['price']); ?> | 📍 <?= htmlspecialchars($row['location']); ?></p>
+            <h4>Renters:</h4>
+            <?php 
+                $renters = explode('||', $row['renters']);
+                foreach($renters as $r){
+                    list($r_name, $r_id, $r_status, $r_request_id) = explode('|', $r);
+            ?>
+                <div>
+                    <span class="status <?= $r_status ?>"><?= ucfirst($r_status) ?></span>
+                    <?= htmlspecialchars($r_name) ?>
+                    <div class="renter-actions">
+                        <?php if($r_status === 'pending'): ?>
+                            <a href="?action=approve&request_id=<?= $r_request_id ?>" class="btn btn-approve">✅ Approve</a>
+                            <a href="?action=decline&request_id=<?= $r_request_id ?>" class="btn btn-decline">❌ Decline</a>
+                        <?php elseif($r_status === 'approved'): ?>
+                            <a href="chat.php?property_id=<?= $row['property_id'] ?>&with=<?= $r_id ?>" class="btn btn-chat">💬 Chat</a>
+                        <?php else: ?>
+                            <span style="color:#f44336;">❌ Declined</span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php } ?>
         </div>
     <?php endwhile; ?>
 <?php else: ?>
-    <p style="text-align:center; color:#555;">No rental requests yet.</p>
+    <p style="text-align:center; color:#555;">No requests found for your properties.</p>
 <?php endif; ?>
 </div>
 
 <a href="landlord_dashboard.php" class="back">⬅ Back to Dashboard</a>
-
 </body>
 </html>
