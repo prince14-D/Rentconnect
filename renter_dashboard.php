@@ -213,9 +213,9 @@ table th { background:#f2f2f2; color:#333; }
                             <?php if ($row['status'] == 'pending'): ?>
                                 <a href="?cancel_request=<?php echo $row['request_id']; ?>" class="button cancel">❌ Cancel</a>
                             <?php elseif ($row['status'] == 'approved'): ?>
-                                <a href="chat.php?property_id=<?php echo $row['property_id']; ?>&with=<?php echo $row['landlord_id']; ?>" class="button chat">💬 Message Landlord</a>
-                            <?php else: ?>
-                                No action
+                                <a href="chat.php?request_id=<?php echo $row['request_id']; ?>" class="button chat">💬 Chat Landlord</a>
+                            <?php elseif ($row['status'] == 'rejected'): ?>
+                                <span style="color:#f44336;">❌ Request Rejected</span>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -226,6 +226,7 @@ table th { background:#f2f2f2; color:#333; }
         <p>You have not made any requests yet.</p>
     <?php endif; ?>
 </div>
+
 
 <!-- Property Detail Modal -->
 <div id="propertyModal" class="modal">

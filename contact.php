@@ -16,35 +16,35 @@
 
 /* Header */
 header {
-    background: #fff;
-    padding: 10px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    position: sticky;
-    top: 0;
+    background: #fff; 
+    padding: 10px 20px; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
+    position: sticky; top: 0; 
     z-index: 1000;
 }
-header h1 a {
-    text-decoration: none;
-    color: #2E7D32;
-    font-size: 1.2em;
-    font-weight: bold;
+header h1 a { 
+    text-decoration: none; 
+    color: #2E7D32; 
+    font-size: 0.9em; 
+    font-weight: bold; 
 }
 
 /* Nav Links */
 nav {
-    display: flex;
-    gap: 15px;
+    display: flex; 
+    gap: 15px; 
     align-items: center;
 }
 nav a, nav .dropbtn {
     text-decoration: none;
     color: #444;
     font-weight: 500;
-    padding: 8px 14px;
+    padding: 6px 10px;
     border-radius: 6px;
+ 
     cursor: pointer;
     font-size: 1em;
     transition: 0.3s;
@@ -68,6 +68,7 @@ nav a:hover, nav .dropbtn:hover {
     min-width: 160px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     border-radius: 6px;
+    overflow: hidden; 
     z-index: 999;
 }
 .dropdown-content a {
@@ -76,10 +77,13 @@ nav a:hover, nav .dropbtn:hover {
     text-decoration: none;
     color: #444;
     font-size: 0.95em;
+    transition: 0.2s;
 }
+
 .dropdown-content a:hover {
     background: #f5f5f5;
     color: #2E7D32;
+
 }
 .dropdown.active .dropdown-content {
     display: block;
@@ -121,10 +125,10 @@ nav a:hover, nav .dropbtn:hover {
         display: none;
         flex-direction: column;
         position: absolute;
-        top: 60px;
+        top: 65px;
         right: 10px;
         background: #fff;
-        padding: 15px;
+        padding: 10px;
         width: 220px;
         border-radius: 8px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
@@ -134,11 +138,19 @@ nav a:hover, nav .dropbtn:hover {
         display: flex;
     }
     nav a, nav .dropbtn {
+      text-decoration: none;
+        color: #444;
+        font-weight: 500;
         width: 100%;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-size: 1em;
+        transition: 0.3s;
         text-align: left;
-        padding: 12px;
-        margin-bottom: 5px;
-        border-radius: 8px;
+        padding: 8px 14px;
+        margin-bottom: 0px;
+        border-radius: 6px;
     }
     .dropdown-content {
         position: relative;
