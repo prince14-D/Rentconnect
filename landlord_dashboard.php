@@ -155,7 +155,7 @@ header {
             <span class="badge"><?= $counts['taken'] ?></span>
         <?php endif; ?>
     </a>
-    <a href="chat_list.php" class="card-btn">
+    <a href="chat.php" class="card-btn">
         <i class="fas fa-comments"></i>
         Chat
     </a>
