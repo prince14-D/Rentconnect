@@ -256,8 +256,8 @@ footer a:hover { text-decoration: underline; }
   <div class="about-section">
     <h3>Meet Our Team</h3>
     <div class="team">
-      <div class="team-member"><img src="images/team1.png"><h4>Prince W. Dahn Jr</h4><p>Founder & CEO</p></div>
-      <div class="team-member"><img src="images/team1.png"><h4>Sarah Johnson</h4><p>Operations Manager</p></div>
+      <div class="team-member"><img src="images/PD.jpeg"><h4>Prince W. Dahn Jr</h4><p>Founder & CEO</p></div>
+      <div class="team-member"><img src="images/UA.jpeg"><h4>Urvashi Agarwal</h4><p>Operations Manager</p></div>
       <div class="team-member"><img src="images/team1.png"><h4>Michael Doe</h4><p>Lead Developer</p></div>
       <div class="team-member"><img src="images/team1.png"><h4>Grace Koffa</h4><p>Marketing & Outreach</p></div>
     </div>
