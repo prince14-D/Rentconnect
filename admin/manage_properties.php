@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "../db.php";
+include "../app_init.php";
 
 // Ensure only admin
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
@@ -13,18 +13,14 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 ------------------------- */
 if (isset($_GET['approve'])) {
     $pid = intval($_GET['approve']);
-    $stmt = $conn->prepare("UPDATE properties SET status='approved' WHERE id=?");
-    $stmt->bind_param("i", $pid);
-    $stmt->execute();
+    rc_mig_set_property_status($conn, $pid, 'approved');
     header("Location: manage_properties.php");
     exit;
 }
 
 if (isset($_GET['reject'])) {
     $pid = intval($_GET['reject']);
-    $stmt = $conn->prepare("UPDATE properties SET status='rejected' WHERE id=?");
-    $stmt->bind_param("i", $pid);
-    $stmt->execute();
+    rc_mig_set_property_status($conn, $pid, 'rejected');
     header("Location: manage_properties.php");
     exit;
 }
@@ -34,9 +30,7 @@ if (isset($_GET['reject'])) {
 ------------------------- */
 if (isset($_GET['delete'])) {
     $pid = intval($_GET['delete']);
-    $stmt = $conn->prepare("DELETE FROM properties WHERE id=?");
-    $stmt->bind_param("i", $pid);
-    $stmt->execute();
+    rc_mig_delete_property_with_images($conn, $pid);
     header("Location: manage_properties.php");
     exit;
 }
@@ -44,14 +38,7 @@ if (isset($_GET['delete'])) {
 /* -------------------------
    Fetch All Properties
 ------------------------- */
-$sql = "
-    SELECT p.id, p.title, p.location, p.price, p.status, p.created_at,
-           u.name AS landlord_name, u.email AS landlord_email
-    FROM properties p
-    JOIN users u ON p.owner_id = u.id
-    ORDER BY p.created_at DESC
-";
-$properties = $conn->query($sql);
+$properties = rc_mig_get_manage_properties_rows($conn);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -92,7 +79,7 @@ th { background:#f9f9f9; }
         <th>Created At</th>
         <th>Action</th>
     </tr>
-    <?php while ($p = $properties->fetch_assoc()): ?>
+    <?php foreach ($properties as $p): ?>
     <tr>
         <td><?php echo $p['id']; ?></td>
         <td><?php echo htmlspecialchars($p['title']); ?></td>
@@ -109,7 +96,7 @@ th { background:#f9f9f9; }
             <a href="?delete=<?php echo $p['id']; ?>" class="action-btn delete" onclick="return confirm('Delete this property?')">🗑 Delete</a>
         </td>
     </tr>
-    <?php endwhile; ?>
+    <?php endforeach; ?>
 </table>
 
 </body>

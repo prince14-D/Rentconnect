@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'super_admin') {
     header("Location: super_admin_login.php");

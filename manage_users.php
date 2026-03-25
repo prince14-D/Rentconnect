@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 // Ensure admin access
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {

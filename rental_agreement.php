@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 include "email_notifications.php";
 
 // Ensure renter access
@@ -79,9 +79,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             // Update property booking status
-            $stmt3 = $conn->prepare("UPDATE properties SET booking_status = 'booked' WHERE id = ?");
-            $stmt3->bind_param("i", $property_id);
-            $stmt3->execute();
+            if (!rc_mig_set_property_booking_status($conn, (int) $property_id, 'booked')) {
+              throw new Exception('Failed to update property booking status.');
+            }
             
             // Fetch renter and landlord details for email
             $renter_stmt = $conn->prepare("SELECT name, email FROM users WHERE id = ?");

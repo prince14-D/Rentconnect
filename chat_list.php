@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
@@ -10,42 +10,12 @@ if (!isset($_SESSION['user_id'])) {
 $current_user = $_SESSION['user_id'];
 
 function fetchConversations($conn, $current_user) {
-    $sql = "SELECT
-                m.property_id,
-                u.id AS with_id,
-                u.name AS with_name,
-                u.profile_pic,
-                p.title AS property_title,
-                MAX(m.created_at) AS last_time,
-                (SELECT message FROM messages
-                 WHERE property_id = m.property_id
-                   AND ((sender_id = ? AND receiver_id = u.id) OR (sender_id = u.id AND receiver_id = ?))
-                 ORDER BY created_at DESC LIMIT 1) AS last_message,
-                (SELECT COUNT(*) FROM messages
-                 WHERE property_id = m.property_id
-                   AND receiver_id = ?
-                   AND sender_id = u.id
-                   AND is_read = 0) AS unread_count
-            FROM messages m
-            JOIN properties p ON p.id = m.property_id
-            JOIN users u ON
-                (CASE
-                    WHEN m.sender_id = ? THEN m.receiver_id = u.id
-                    ELSE m.sender_id = u.id
-                 END)
-            WHERE (m.sender_id = ? OR m.receiver_id = ?)
-            GROUP BY m.property_id, u.id
-            ORDER BY last_time DESC";
-
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("iiiiii", $current_user, $current_user, $current_user, $current_user, $current_user, $current_user);
-    $stmt->execute();
-    return $stmt->get_result();
+    return rc_mig_get_chat_conversations($conn, (int) $current_user);
 }
 
 if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
     $conversations = fetchConversations($conn, $current_user);
-    while ($row = $conversations->fetch_assoc()): ?>
+    foreach ($conversations as $row): ?>
       <li class="chat-item" onclick="window.location.href='chat.php?property_id=<?php echo $row['property_id']; ?>&with=<?php echo $row['with_id']; ?>'">
         <div class="avatar-wrap">
           <?php if (!empty($row['profile_pic'])): ?>
@@ -63,7 +33,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
         </div>
         <span class="time"><?php echo date('H:i', strtotime($row['last_time'])); ?></span>
       </li>
-    <?php endwhile;
+    <?php endforeach;
     exit;
 }
 
@@ -200,8 +170,8 @@ body {
   </section>
 
   <ul class="list" id="chatList">
-    <?php if ($conversations->num_rows > 0): ?>
-      <?php while ($row = $conversations->fetch_assoc()): ?>
+    <?php if (count($conversations) > 0): ?>
+      <?php foreach ($conversations as $row): ?>
         <li class="chat-item" onclick="window.location.href='chat.php?property_id=<?php echo $row['property_id']; ?>&with=<?php echo $row['with_id']; ?>'">
           <div class="avatar-wrap">
             <?php if (!empty($row['profile_pic'])): ?>
@@ -219,7 +189,7 @@ body {
           </div>
           <span class="time"><?php echo date('H:i', strtotime($row['last_time'])); ?></span>
         </li>
-      <?php endwhile; ?>
+      <?php endforeach; ?>
     <?php else: ?>
       <li class="no-chats">No conversations yet. Start chatting from a property page.</li>
     <?php endif; ?>

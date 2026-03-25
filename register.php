@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 require_once "user_registration_helper.php";
 
 $error = "";

@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'renter') {
     header("Location: login.php");
@@ -10,59 +10,14 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'renter') {
 $renter_id = $_SESSION['user_id'];
 $message = "";
 
-// Fetch active bookings with landlord info
-$bookings_sql = "
-SELECT 
-    b.id, b.property_id, b.move_in_date, b.move_out_date, b.monthly_rent, b.status,
-    p.title, p.location,
-    u.name AS landlord_name
-FROM bookings b
-JOIN properties p ON b.property_id = p.id
-JOIN users u ON b.landlord_id = u.id
-WHERE b.renter_id = ? AND b.status = 'active'
-ORDER BY b.move_in_date DESC
-";
-$stmt_bookings = $conn->prepare($bookings_sql);
-$stmt_bookings->bind_param("i", $renter_id);
-$stmt_bookings->execute();
-$active_bookings = $stmt_bookings->get_result();
-
-// Fetch pending rent reminders
-$reminders_sql = "
-SELECT COUNT(*) as unread_reminders 
-FROM rent_reminders 
-WHERE renter_id = ? AND is_read = 0
-";
-$stmt_reminders = $conn->prepare($reminders_sql);
-$stmt_reminders->bind_param("i", $renter_id);
-$stmt_reminders->execute();
-$reminders_result = $stmt_reminders->get_result()->fetch_assoc();
-$unread_reminders = $reminders_result['unread_reminders'];
-
-// Fetch pending payments
-$payments_sql = "
-SELECT COUNT(*) as pending_payments 
-FROM payments 
-WHERE renter_id = ? AND status = 'pending'
-";
-$stmt_payments = $conn->prepare($payments_sql);
-$stmt_payments->bind_param("i", $renter_id);
-$stmt_payments->execute();
-$payments_result = $stmt_payments->get_result()->fetch_assoc();
-$pending_payments = $payments_result['pending_payments'];
+$active_bookings = rc_mig_get_renter_active_bookings($conn, (int) $renter_id);
+$unread_reminders = rc_mig_get_renter_unread_reminders_count($conn, (int) $renter_id);
+$pending_payments = rc_mig_get_renter_pending_payments_count($conn, (int) $renter_id);
 
 /* Submit rental request */
 if (isset($_GET['request_property'])) {
     $property_id = intval($_GET['request_property']);
-    $check = $conn->prepare("SELECT id FROM requests WHERE user_id=? AND property_id=? LIMIT 1");
-    $check->bind_param("ii", $renter_id, $property_id);
-    $check->execute();
-    $check_res = $check->get_result();
-
-    if ($check_res->num_rows == 0) {
-        $stmt = $conn->prepare("INSERT INTO requests (user_id, property_id, status, created_at) VALUES (?, ?, 'pending', NOW())");
-        $stmt->bind_param("ii", $renter_id, $property_id);
-        $stmt->execute();
+    if (rc_mig_create_request_if_missing($conn, (int) $renter_id, $property_id)) {
         $message = "Request submitted!";
     } else {
         $message = "You have already requested this property.";
@@ -72,37 +27,17 @@ if (isset($_GET['request_property'])) {
 /* Cancel request */
 if (isset($_GET['cancel_request'])) {
     $request_id = intval($_GET['cancel_request']);
-    $stmt = $conn->prepare("DELETE FROM requests WHERE id=? AND user_id=? AND status='pending'");
-    $stmt->bind_param("ii", $request_id, $renter_id);
-    $stmt->execute();
-    $message = "Request canceled.";
+    if (rc_mig_cancel_pending_request($conn, $request_id, (int) $renter_id)) {
+        $message = "Request canceled.";
+    }
 }
 
 /* Search & fetch properties */
 $search = $_GET['search'] ?? '';
-$searchTerm = "%$search%";
-$sql = "SELECT * FROM properties WHERE status='approved' AND (title LIKE ? OR location LIKE ? OR price LIKE ?) ORDER BY created_at DESC";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("sss", $searchTerm, $searchTerm, $searchTerm);
-$stmt->execute();
-$properties = $stmt->get_result();
+$properties = rc_mig_search_approved_properties($conn, (string) $search);
 
 /* Fetch renter's requests */
-$sql = "
-SELECT r.id AS request_id, r.status, r.created_at,
-       p.id AS property_id, p.title, p.price, p.location,
-       p.owner_id AS landlord_id,
-       u.name AS landlord_name, u.email AS landlord_email
-FROM requests r
-INNER JOIN properties p ON r.property_id = p.id
-INNER JOIN users u ON p.owner_id = u.id
-WHERE r.user_id = ?
-ORDER BY r.created_at DESC
-";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("i", $renter_id);
-$stmt->execute();
-$requests = $stmt->get_result();
+$requests = rc_mig_get_renter_requests($conn, (int) $renter_id);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -377,18 +312,78 @@ th {
     cursor: pointer;
 }
 
-@media (max-width: 700px) {
-    .search-form {
+@media (max-width: 900px) {
+    .container {
+        width: 100vw;
+        padding: 0 2vw;
+    }
+    .hero {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 18px 10px;
+    }
+    .section {
+        padding: 10px 6px;
+    }
+    .grid {
         grid-template-columns: 1fr;
+        gap: 10px;
     }
-
-    .search-form button {
-        width: 100%;
+    .property-card {
+        min-width: 0;
+        font-size: 1rem;
     }
-
-    .hero .logout {
+    .carousel {
+        height: 140px;
+    }
+    .carousel img {
+        height: 140px;
+    }
+    .modal-content {
+        width: 98vw;
+        padding: 8px;
+    }
+    .table-wrap {
+        min-width: 0;
+        overflow-x: auto;
+    }
+    table {
+        min-width: 480px;
+        font-size: 0.92rem;
+    }
+    .actions {
+        flex-direction: column;
+        gap: 6px;
+    }
+    .btn {
         width: 100%;
         text-align: center;
+        font-size: 1rem;
+        padding: 12px 0;
+    }
+}
+
+@media (max-width: 500px) {
+    .hero h1 {
+        font-size: 1.1rem;
+    }
+    .section h2 {
+        font-size: 1.05rem;
+    }
+    .property-card {
+        font-size: 0.98rem;
+    }
+    .carousel, .carousel img {
+        height: 90px;
+    }
+    .btn {
+        font-size: 0.98rem;
+        padding: 10px 0;
+    }
+    .modal-content {
+        width: 100vw;
+        padding: 2px;
     }
 }
 </style>
@@ -416,40 +411,59 @@ th {
             </form>
         </section>
 
+
+        <!-- Modernized Available Properties Section -->
         <section class="section">
-            <h2>Available Properties</h2>
+            <h2 style="display:flex;align-items:center;gap:8px;">🏡 Available Properties <span style="font-size:0.9rem;color:var(--muted);font-weight:500;">(Not yet booked)</span></h2>
             <div class="grid">
-                <?php if ($properties->num_rows > 0): ?>
-                    <?php while ($row = $properties->fetch_assoc()): ?>
-                        <article class="property-card">
-                            <?php
-                            $img_stmt = $conn->prepare("SELECT id FROM property_images WHERE property_id=?");
-                            $img_stmt->bind_param("i", $row['id']);
-                            $img_stmt->execute();
-                            $imgs = $img_stmt->get_result();
-                            ?>
+                <?php if (!empty($properties)): ?>
+                    <?php foreach ($properties as $row): ?>
+                        <?php
+                        $imgs = rc_mig_get_property_image_ids($conn, (int) $row['id']);
+                        $alreadyBooked = false;
+                        foreach ($active_bookings as $booking) {
+                            if ($booking['property_id'] == $row['id']) {
+                                $alreadyBooked = true;
+                                break;
+                            }
+                        }
+                        ?>
+                        <article class="property-card" style="position:relative;box-shadow:0 2px 12px rgba(31,143,103,0.07);">
+                            <?php if ($alreadyBooked): ?>
+                                <span style="position:absolute;top:10px;right:10px;background:#1f8f67;color:#fff;padding:5px 12px;border-radius:8px;font-size:0.85rem;font-weight:700;z-index:2;box-shadow:0 2px 8px rgba(31,143,103,0.13);">Booked</span>
+                            <?php else: ?>
+                                <span style="position:absolute;top:10px;right:10px;background:#ff7a2f;color:#fff;padding:5px 12px;border-radius:8px;font-size:0.85rem;font-weight:700;z-index:2;box-shadow:0 2px 8px rgba(255,122,47,0.13);">Available</span>
+                            <?php endif; ?>
                             <div class="carousel">
-                                <?php if ($imgs->num_rows > 0): ?>
-                                    <?php $first = true; while ($img = $imgs->fetch_assoc()): ?>
+                                <?php if (!empty($imgs)): ?>
+                                    <?php $first = true; foreach ($imgs as $img): ?>
                                         <img src="display_image.php?img_id=<?php echo $img['id']; ?>" alt="Property image" class="<?php echo $first ? 'active' : ''; ?>">
                                         <?php $first = false; ?>
-                                    <?php endwhile; ?>
+                                    <?php endforeach; ?>
                                 <?php else: ?>
                                     <img src="images/no-image.png" alt="No image" class="active">
                                 <?php endif; ?>
                             </div>
-
                             <div class="content">
-                                <h3><?php echo htmlspecialchars($row['title']); ?></h3>
-                                <p><?php echo htmlspecialchars($row['location']); ?></p>
-                                <p>$<?php echo number_format($row['price']); ?></p>
+                                <h3 style="display:flex;align-items:center;gap:6px;">
+                                    <?php echo htmlspecialchars($row['title']); ?>
+                                </h3>
+                                <p style="margin-bottom:2px;"><span style="color:#2276d2;font-weight:600;">📍</span> <?php echo htmlspecialchars($row['location']); ?></p>
+                                <p style="margin-bottom:2px;"><span style="color:#1f8f67;font-weight:600;">💰</span> $<?php echo number_format($row['price']); ?></p>
+                                <?php if (!empty($row['landlord_name'])): ?>
+                                    <p style="margin-bottom:2px;"><span style="color:#ff7a2f;font-weight:600;">👤</span> Landlord: <?php echo htmlspecialchars($row['landlord_name']); ?></p>
+                                <?php endif; ?>
                                 <div class="actions">
-                                    <a href="?request_property=<?php echo $row['id']; ?>" class="btn request">Request to Rent</a>
+                                    <?php if ($alreadyBooked): ?>
+                                        <a href="#active-bookings" class="btn detail" style="background:#1f8f67;">View Booking</a>
+                                    <?php else: ?>
+                                        <a href="?request_property=<?php echo $row['id']; ?>" class="btn request">Request to Rent</a>
+                                    <?php endif; ?>
                                     <a href="javascript:void(0)" class="btn detail" onclick="openModal(<?php echo $row['id']; ?>)">View Details</a>
                                 </div>
                             </div>
                         </article>
-                    <?php endwhile; ?>
+                    <?php endforeach; ?>
                 <?php else: ?>
                     <p>No approved properties available yet.</p>
                 <?php endif; ?>
@@ -458,7 +472,7 @@ th {
 
         <section class="section">
             <h2>My Requests</h2>
-            <?php if ($requests->num_rows > 0): ?>
+            <?php if (!empty($requests)): ?>
                 <div class="table-wrap">
                     <table>
                         <thead>
@@ -472,7 +486,7 @@ th {
                             </tr>
                         </thead>
                         <tbody>
-                            <?php while ($row = $requests->fetch_assoc()): ?>
+                            <?php foreach ($requests as $row): ?>
                                 <tr>
                                     <td><?php echo htmlspecialchars($row['title']); ?></td>
                                     <td>$<?php echo number_format($row['price']); ?></td>
@@ -497,7 +511,7 @@ th {
                                         <?php endif; ?>
                                     </td>
                                 </tr>
-                            <?php endwhile; ?>
+                            <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
@@ -508,9 +522,9 @@ th {
 
         <section class="section">
             <h2>🏠 Active Bookings</h2>
-            <?php if ($active_bookings->num_rows > 0): ?>
+            <?php if (!empty($active_bookings)): ?>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
-                    <?php while ($booking = $active_bookings->fetch_assoc()): ?>
+                    <?php foreach ($active_bookings as $booking): ?>
                     <div style="background: linear-gradient(135deg, #f6f9fc 0%, #f9f6ef 100%); border: 1px solid var(--line); border-radius: 12px; padding: 14px; border-left: 4px solid var(--brand);">
                         <h3 style="font-size: 1.05rem; margin-bottom: 8px; color: var(--ink);"><?php echo htmlspecialchars($booking['title']); ?></h3>
                         <p style="color: var(--muted); font-size: 0.9rem; margin: 4px 0;">📍 <?php echo htmlspecialchars($booking['location']); ?></p>
@@ -525,7 +539,7 @@ th {
                             <a href="manage_bookings.php" style="flex: 1; display: inline-block; text-align: center; padding: 10px; background: #2276d2; color: #fff; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 0.85rem;">📋 Manage</a>
                         </div>
                     </div>
-                    <?php endwhile; ?>
+                    <?php endforeach; ?>
                 </div>
             <?php else: ?>
                 <p>You have no active bookings yet. <a href="#" style="color: var(--brand); font-weight: 700;">Browse and book properties</a> to get started!</p>

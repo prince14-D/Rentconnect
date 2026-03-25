@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 // Ensure landlord access
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'landlord') {
@@ -8,57 +8,43 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'landlord') {
     exit;
 }
 
-$landlord_id = $_SESSION['user_id'];
+$landlord_id = (int) $_SESSION['user_id'];
 $message = "";
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $title = $_POST['title'];
-    $location = $_POST['location'];
-    $price = $_POST['price'];
-    $contact = $_POST['contact'];
-    $bedrooms = $_POST['bedrooms'] ?? 0;
-    $bathrooms = $_POST['bathrooms'] ?? 0;
-    $description = $_POST['description'] ?? "";
+    $title = trim((string) ($_POST['title'] ?? ''));
+    $location = trim((string) ($_POST['location'] ?? ''));
+    $price = (float) ($_POST['price'] ?? 0);
+    $contact = trim((string) ($_POST['contact'] ?? ''));
+    $bedrooms = (int) ($_POST['bedrooms'] ?? 0);
+    $bathrooms = (int) ($_POST['bathrooms'] ?? 0);
+    $description = trim((string) ($_POST['description'] ?? ''));
 
-    // Insert property as 'pending'
-    $stmt = $conn->prepare("
-        INSERT INTO properties
-        (landlord_id, title, location, price, contact, bedrooms, bathrooms, description, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW())
-    ");
-    $stmt->bind_param(
-        "issdsdds",
-        $landlord_id,
-        $title,
-        $location,
-        $price,
-        $contact,
-        $bedrooms,
-        $bathrooms,
-        $description
-    );
+    $created = rc_mig_create_property($conn, $landlord_id, [
+        'title' => $title,
+        'location' => $location,
+        'price' => $price,
+        'contact' => $contact,
+        'bedrooms' => $bedrooms,
+        'bathrooms' => $bathrooms,
+        'description' => $description,
+        'status' => 'pending',
+    ]);
 
-    if ($stmt->execute()) {
-        $property_id = $stmt->insert_id;
+    if (!empty($created['ok'])) {
+        $property_id = (int) ($created['id'] ?? 0);
 
-        // Handle Multiple Image Uploads
         if (!empty($_FILES['photos']['name'][0])) {
             $total_files = count($_FILES['photos']['name']);
-
             for ($i = 0; $i < $total_files; $i++) {
-                if ($_FILES['photos']['error'][$i] == 0) {
-                    $imageData = file_get_contents($_FILES['photos']['tmp_name'][$i]);
-                    $mimeType = mime_content_type($_FILES['photos']['tmp_name'][$i]);
+                if (($_FILES['photos']['error'][$i] ?? UPLOAD_ERR_NO_FILE) === 0) {
+                    $tmpPath = (string) ($_FILES['photos']['tmp_name'][$i] ?? '');
+                    $imageData = $tmpPath !== '' ? file_get_contents($tmpPath) : false;
+                    $mimeType = $tmpPath !== '' ? (string) mime_content_type($tmpPath) : '';
 
-                    $img_stmt = $conn->prepare("INSERT INTO property_images (property_id, image, mime_type) VALUES (?, ?, ?)");
-
-                    $null = null;
-                    $img_stmt->bind_param("ibs", $property_id, $null, $mimeType);
-                    $img_stmt->send_long_data(1, $imageData);
-
-                    if (!$img_stmt->execute()) {
-                        $message .= "Error uploading image: " . $img_stmt->error . "<br>";
+                    if (!is_string($imageData) || $imageData === '' || $mimeType === '' || !rc_mig_add_property_image($conn, $property_id, $imageData, $mimeType)) {
+                        $message .= "Error uploading one of the images.<br>";
                     }
                 }
             }
@@ -66,11 +52,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $message .= "Property uploaded successfully. Please contact admin to approve +231888-272-360.";
     } else {
-        $message = "Failed to upload property: " . $stmt->error;
+        $message = "Failed to upload property: " . htmlspecialchars((string) ($created['error'] ?? 'unknown error'));
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>

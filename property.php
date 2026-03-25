@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 // Get property ID
 if (!isset($_GET['id'])) {
@@ -19,6 +19,12 @@ if (!$property) {
 
 // Check booking status
 $booking_status = $property['booking_status'] ?? 'available';
+
+$propertyImages = rc_mig_get_property_image_ids($conn, (int) $property_id);
+$firstImageId = isset($propertyImages[0]['id']) ? (int) $propertyImages[0]['id'] : 0;
+$heroImageSrc = $firstImageId > 0
+    ? 'display_image.php?img_id=' . $firstImageId
+    : 'images/no-image.png';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -280,7 +286,7 @@ $booking_status = $property['booking_status'] ?? 'available';
 <main class="page">
     <div class="container">
         <article class="property-card">
-            <img src="uploads/<?php echo htmlspecialchars($property['photo']); ?>" alt="Property" class="hero-image">
+            <img src="<?php echo htmlspecialchars($heroImageSrc); ?>" alt="Property" class="hero-image">
 
             <div class="content">
                 <section>

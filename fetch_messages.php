@@ -1,12 +1,13 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 if (!isset($_SESSION['user_id'])) {
     exit("You must log in.");
 }
 
 $current_user = $_SESSION['user_id'];
+$role = (string) ($_SESSION['role'] ?? '');
 
 if (!isset($_GET['property_id']) || !isset($_GET['with'])) {
     exit("Invalid request.");
@@ -15,25 +16,17 @@ if (!isset($_GET['property_id']) || !isset($_GET['with'])) {
 $property_id = intval($_GET['property_id']);
 $with_user   = intval($_GET['with']);
 
-// ✅ Get messages between current user and $with_user for this property
-$sql = "SELECT m.*, u.name 
-        FROM messages m
-        JOIN users u ON m.sender_id = u.id
-        WHERE m.property_id = ?
-          AND ((m.sender_id = ? AND m.receiver_id = ?) 
-           OR (m.sender_id = ? AND m.receiver_id = ?))
-        ORDER BY m.created_at ASC";
+if (!rc_mig_can_access_chat($conn, (int) $current_user, $role, $property_id, $with_user)) {
+    exit('Access denied.');
+}
 
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("iiiii", $property_id, $current_user, $with_user, $with_user, $current_user);
-$stmt->execute();
-$result = $stmt->get_result();
+$messages = rc_mig_get_chat_messages($conn, $property_id, (int) $current_user, $with_user);
 
-if ($result->num_rows === 0) {
+if (count($messages) === 0) {
     echo "<p class='empty-msg'>No messages yet. Start the conversation.</p>";
 }
 
-while ($row = $result->fetch_assoc()) {
+foreach ($messages as $row) {
     $isSent = ($row['sender_id'] == $current_user);
     $class = $isSent ? "sent" : "received";
 
@@ -42,5 +35,4 @@ while ($row = $result->fetch_assoc()) {
     echo "<small>" . date("H:i", strtotime($row['created_at'])) . "</small>";
     echo "</article>";
 }
-$stmt->close();
 ?>

@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 // Ensure landlord access
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'landlord') {
@@ -8,16 +8,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'landlord') {
     exit;
 }
 
-$landlord_id = $_SESSION['user_id'];
-
-// Fetch approved properties
-$stmt = $conn->prepare("SELECT p.id, p.title, p.location, p.price, p.bedrooms, p.bathrooms, p.created_at 
-                        FROM properties p 
-                        WHERE p.landlord_id=? AND p.status='approved' 
-                        ORDER BY p.created_at DESC");
-$stmt->bind_param("i", $landlord_id);
-$stmt->execute();
-$result = $stmt->get_result();
+$landlord_id = (int) $_SESSION['user_id'];
+$properties = rc_mig_get_landlord_properties($conn, $landlord_id, 'approved', '');
 
 function format_date($date_str) {
     return date("M d, Y", strtotime($date_str));
@@ -310,7 +302,7 @@ footer a:hover {
 </div>
 <div class="container">
   <div class="content">
-    <?php if($result && $result->num_rows > 0): ?>
+    <?php if(!empty($properties)): ?>
     <table>
       <thead>
         <tr>
@@ -323,7 +315,7 @@ footer a:hover {
         </tr>
       </thead>
       <tbody>
-        <?php while($row = $result->fetch_assoc()): ?>
+        <?php foreach($properties as $row): ?>
         <tr>
           <td><strong><?= htmlspecialchars($row['title']) ?></strong></td>
           <td><?= htmlspecialchars($row['location']) ?></td>
@@ -332,7 +324,7 @@ footer a:hover {
           <td><?= $row['bathrooms'] ?></td>
           <td><?= format_date($row['created_at']) ?></td>
         </tr>
-        <?php endwhile; ?>
+        <?php endforeach; ?>
       </tbody>
     </table>
     <?php else: ?>

@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 function redirect_with_flash(string $type, string $message): void {
     $_SESSION[$type] = $message;

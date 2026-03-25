@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header("Location: login.php");
@@ -10,30 +10,25 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 // Approve / Decline / Delete
 if (isset($_GET['approve'])) {
     $id = intval($_GET['approve']);
-    $conn->query("UPDATE properties SET status='approved' WHERE id=$id");
+  rc_mig_set_property_status($conn, $id, 'approved');
     header("Location: manage_properties.php");
     exit;
 }
 if (isset($_GET['decline'])) {
     $id = intval($_GET['decline']);
-    $conn->query("UPDATE properties SET status='declined' WHERE id=$id");
+  rc_mig_set_property_status($conn, $id, 'declined');
     header("Location: manage_properties.php");
     exit;
 }
 if (isset($_GET['delete'])) {
     $id = intval($_GET['delete']);
-    $conn->query("DELETE FROM properties WHERE id=$id");
+  rc_mig_delete_property_with_images($conn, $id);
     header("Location: manage_properties.php");
     exit;
 }
 
 // Fetch properties
-$properties = $conn->query("
-    SELECT p.id, p.title, p.location, p.price, p.status, u.name AS owner
-    FROM properties p
-    JOIN users u ON u.id = COALESCE(p.owner_id, p.landlord_id)
-    ORDER BY p.created_at DESC
-");
+$properties = rc_mig_get_manage_properties_rows($conn);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -132,7 +127,7 @@ th { background: #f6f9fc; color: #415067; }
   </section>
 
   <section class="panel">
-    <?php if ($properties->num_rows > 0): ?>
+    <?php if (count($properties) > 0): ?>
       <div class="table-wrap">
         <table>
           <thead>
@@ -147,7 +142,7 @@ th { background: #f6f9fc; color: #415067; }
             </tr>
           </thead>
           <tbody>
-            <?php while ($prop = $properties->fetch_assoc()): ?>
+            <?php foreach ($properties as $prop): ?>
               <tr>
                 <td><?php echo (int) $prop['id']; ?></td>
                 <td><?php echo htmlspecialchars($prop['title']); ?></td>
@@ -163,7 +158,7 @@ th { background: #f6f9fc; color: #415067; }
                   <a href="?delete=<?php echo (int) $prop['id']; ?>" class="delete" onclick="return confirm('Delete this property?')">Delete</a>
                 </td>
               </tr>
-            <?php endwhile; ?>
+            <?php endforeach; ?>
           </tbody>
         </table>
       </div>

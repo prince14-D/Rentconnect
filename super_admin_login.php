@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 // Redirect if already logged in
 if (isset($_SESSION['role']) && $_SESSION['role'] === 'super_admin') {
@@ -23,25 +23,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Please enter a valid email address.";
     } else {
-        $stmt = $conn->prepare("SELECT id, name, email, password, role FROM users WHERE email=? AND role='super_admin' LIMIT 1");
-        $stmt->bind_param("s", $email);
-        $stmt->execute();
-        $result = $stmt->get_result();
+        $user = rc_mig_get_user_auth_by_email($conn, $email);
 
-        if ($result && $result->num_rows > 0) {
-            $user = $result->fetch_assoc();
+        if ($user && (string) ($user['role'] ?? '') === 'super_admin') {
+            $storedPassword = (string) ($user['password'] ?? '');
+            $passwordOk = false;
 
-            // Plain text password check (consider using password_hash in production)
-            if ($password === $user['password']) {
-                $_SESSION['user_id'] = $user['id'];
-                $_SESSION['role'] = $user['role'];
-                $_SESSION['user_name'] = $user['name'];
+            // Support both modern hashed passwords and any legacy plain-text values.
+            if ($storedPassword !== '' && password_verify($password, $storedPassword)) {
+                $passwordOk = true;
+            } elseif ($storedPassword !== '' && hash_equals($storedPassword, $password)) {
+                $passwordOk = true;
+            }
+
+            if ($passwordOk) {
+                $_SESSION['user_id'] = (int) ($user['id'] ?? 0);
+                $_SESSION['role'] = (string) ($user['role'] ?? 'super_admin');
+                $_SESSION['user_name'] = (string) ($user['name'] ?? 'Super Admin');
 
                 header("Location: super_admin_dashboard.php");
                 exit();
-            } else {
-                $error = "Invalid email or password.";
             }
+
+            $error = "Invalid email or password.";
         } else {
             $error = "Invalid email or password.";
         }

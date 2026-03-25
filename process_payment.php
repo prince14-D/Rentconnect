@@ -5,7 +5,7 @@
  */
 
 session_start();
-include 'db.php';
+include 'app_init.php';
 include 'stripe_payment.php';
 include 'lonestar_momo.php';
 include 'email_notifications.php';

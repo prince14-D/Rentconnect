@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 // Ensure landlord access
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'landlord') {
@@ -14,24 +14,7 @@ $message = "";
 // Optional search by title or location
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 
-// Fetch taken properties
-$sql = "SELECT * FROM properties WHERE owner_id=? AND status='taken'";
-$params = [$landlord_id];
-$types = "i";
-
-if ($search !== '') {
-    $sql .= " AND (title LIKE ? OR location LIKE ?)";
-    $searchTerm = "%$search%";
-    $params[] = $searchTerm;
-    $params[] = $searchTerm;
-    $types .= "ss";
-}
-
-$sql .= " ORDER BY created_at DESC";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param($types, ...$params);
-$stmt->execute();
-$result = $stmt->get_result();
+$result = rc_mig_get_landlord_properties($conn, (int) $landlord_id, 'taken', (string) $search);
 
 function format_date($date_str) {
     return date("M d, Y", strtotime($date_str));
@@ -388,7 +371,7 @@ footer a:hover {
       <?php endif; ?>
     </div>
 
-    <?php if($result && $result->num_rows > 0): ?>
+    <?php if(!empty($result)): ?>
     <div class="table-wrapper">
       <table>
         <thead>
@@ -403,7 +386,7 @@ footer a:hover {
           </tr>
         </thead>
         <tbody>
-          <?php while($row = $result->fetch_assoc()): ?>
+          <?php foreach($result as $row): ?>
           <tr>
             <td><strong><?= htmlspecialchars($row['title']) ?></strong></td>
             <td><?= htmlspecialchars($row['location']) ?></td>
@@ -413,7 +396,7 @@ footer a:hover {
             <td><?= format_date($row['created_at']) ?></td>
             <td><span class="status-badge">Taken</span></td>
           </tr>
-          <?php endwhile; ?>
+          <?php endforeach; ?>
         </tbody>
       </table>
     </div>

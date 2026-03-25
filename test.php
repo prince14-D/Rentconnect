@@ -1,12 +1,18 @@
 <?php
-$host = "localhost";
-$user = "root";        // XAMPP default MySQL user
-$pass = "";            // leave empty unless you set a password
-$db   = "rentconnect_db";
+include 'app_init.php';
 
-$conn = new mysqli($host, $user, $pass, $db);
+$cfg = rc_supabase_config();
+echo "Supabase URL: " . htmlspecialchars($cfg['url'] ?? '') . "\n";
 
-if ($conn->connect_error) {
-    die("Database connection failed: " . $conn->connect_error);
+$probe = rc_mig_supabase_request('GET', 'users', [
+    'select' => 'id',
+    'limit' => '1',
+]);
+
+if (!empty($probe['ok'])) {
+    echo "Supabase connection: OK\n";
+} else {
+    echo "Supabase connection: FAILED\n";
+    echo "Details: " . htmlspecialchars((string) ($probe['error'] ?? $probe['raw'] ?? 'unknown')) . "\n";
 }
 ?>

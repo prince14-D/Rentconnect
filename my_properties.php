@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'landlord') {
     header("Location: login.php");
@@ -14,40 +14,14 @@ $search = trim($_GET['search'] ?? '');
 $message = '';
 if (isset($_GET['delete_id'])) {
     $delete_id = intval($_GET['delete_id']);
-    $stmt = $conn->prepare("DELETE FROM properties WHERE id=? AND landlord_id=?");
-    $stmt->bind_param("ii", $delete_id, $landlord_id);
-    if ($stmt->execute()) {
+  if (rc_mig_delete_property_for_landlord($conn, $delete_id, (int) $landlord_id)) {
         $message = "Property deleted successfully.";
     } else {
         $message = "Failed to delete property.";
     }
 }
 
-$sql = "SELECT * FROM properties
-        WHERE (landlord_id=? OR (status='pending' AND landlord_id=?))";
-$params = [$landlord_id, $landlord_id];
-$types = "ii";
-
-if ($status_filter !== 'all') {
-    $sql .= " AND status=?";
-    $params[] = $status_filter;
-    $types .= "s";
-}
-
-if ($search !== '') {
-    $sql .= " AND (title LIKE ? OR location LIKE ?)";
-    $searchTerm = "%$search%";
-    $params[] = $searchTerm;
-    $params[] = $searchTerm;
-    $types .= "ss";
-}
-
-$sql .= " ORDER BY FIELD(status,'pending','approved','taken','inactive'), created_at DESC";
-
-$stmt = $conn->prepare($sql);
-$stmt->bind_param($types, ...$params);
-$stmt->execute();
-$result = $stmt->get_result();
+$properties = rc_mig_get_landlord_properties($conn, (int) $landlord_id, (string) $status_filter, (string) $search);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -210,7 +184,7 @@ function confirmDelete(id) {
       <button type="submit">Apply</button>
     </form>
 
-    <?php if ($result && $result->num_rows > 0): ?>
+    <?php if (!empty($properties)): ?>
       <div class="table-wrap">
         <table>
           <thead>
@@ -219,7 +193,7 @@ function confirmDelete(id) {
             </tr>
           </thead>
           <tbody>
-            <?php while ($row = $result->fetch_assoc()): ?>
+            <?php foreach ($properties as $row): ?>
               <tr>
                 <td><?php echo (int) $row['id']; ?></td>
                 <td><?php echo htmlspecialchars($row['title']); ?></td>
@@ -234,7 +208,7 @@ function confirmDelete(id) {
                   <a href="javascript:void(0)" class="delete" onclick="confirmDelete(<?php echo (int) $row['id']; ?>)">Delete</a>
                 </td>
               </tr>
-            <?php endwhile; ?>
+            <?php endforeach; ?>
           </tbody>
         </table>
       </div>

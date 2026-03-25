@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 require_once "user_registration_helper.php";
 
 $message = "";
@@ -9,13 +9,16 @@ $email = "";
 $role = "";
 
 $firebase_config = [
-    'apiKey' => getenv('FIREBASE_API_KEY') ?: '',
-    'authDomain' => getenv('FIREBASE_AUTH_DOMAIN') ?: '',
-    'projectId' => getenv('FIREBASE_PROJECT_ID') ?: '',
-    'storageBucket' => getenv('FIREBASE_STORAGE_BUCKET') ?: '',
-    'messagingSenderId' => getenv('FIREBASE_MESSAGING_SENDER_ID') ?: '',
-    'appId' => getenv('FIREBASE_APP_ID') ?: '',
+    'apiKey' => '',
+    'authDomain' => '',
+    'projectId' => '',
+    'storageBucket' => '',
+    'messagingSenderId' => '',
+    'appId' => '',
 ];
+if (function_exists('rc_firebase_config')) {
+    $firebase_config = rc_firebase_config();
+}
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $name = trim($_POST['name'] ?? '');
@@ -314,6 +317,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <script>
     const firebaseConfig = <?php echo json_encode($firebase_config, JSON_UNESCAPED_SLASHES); ?>;
 
+    function firebaseErrorMessage(err, fallback) {
+        const code = String(err?.code || '');
+        if (code === 'auth/operation-not-allowed') {
+            return "Google sign-in is disabled in Firebase. Enable it in Firebase Console > Authentication > Sign-in method > Google, and add this domain to Authorized domains.";
+        }
+        if (code === 'auth/unauthorized-domain') {
+            return "This domain is not authorized for Firebase Auth. Add it in Firebase Console > Authentication > Settings > Authorized domains.";
+        }
+        return err?.message || fallback;
+    }
+
     async function signUpWithGoogle() {
         if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
             alert("Firebase config is missing. Set FIREBASE_* environment variables first.");
@@ -350,7 +364,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         try {
             await signUpWithGoogle();
         } catch (err) {
-            alert(err.message || "Google signup failed.");
+            alert(firebaseErrorMessage(err, "Google signup failed."));
         }
     });
 

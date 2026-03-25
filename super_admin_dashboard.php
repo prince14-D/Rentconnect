@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 // Only allow super admin
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'super_admin') {
@@ -12,41 +12,22 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'super_admin') {
 if (isset($_GET['action'], $_GET['id'])) {
     $id = intval($_GET['id']);
     if ($_GET['action'] === 'approve') {
-        $stmt = $conn->prepare("UPDATE properties SET status='approved' WHERE id=?");
-        $stmt->bind_param("i", $id);
-        $stmt->execute();
+    rc_mig_set_property_status($conn, $id, 'approved');
     } elseif ($_GET['action'] === 'hide') {
-        $stmt = $conn->prepare("UPDATE properties SET status='inactive' WHERE id=?");
-        $stmt->bind_param("i", $id);
-        $stmt->execute();
+    rc_mig_set_property_status($conn, $id, 'inactive');
     } elseif ($_GET['action'] === 'delete') {
-        $img_stmt = $conn->prepare("DELETE FROM property_images WHERE property_id=?");
-        $img_stmt->bind_param("i", $id);
-        $img_stmt->execute();
-        $stmt = $conn->prepare("DELETE FROM properties WHERE id=?");
-        $stmt->bind_param("i", $id);
-        $stmt->execute();
+    rc_mig_delete_property_with_images($conn, $id);
     }
     header("Location: super_admin_dashboard.php");
     exit();
 }
 
 // Fetch dashboard stats
-$stats_sql = "SELECT 
-    COUNT(*) as total_properties,
-    SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) as pending_count,
-    SUM(CASE WHEN status='approved' THEN 1 ELSE 0 END) as approved_count,
-    SUM(CASE WHEN status='taken' THEN 1 ELSE 0 END) as taken_count,
-    SUM(CASE WHEN status='inactive' THEN 1 ELSE 0 END) as inactive_count,
-    COUNT(DISTINCT landlord_id) as total_landlords
-FROM properties";
-$stats_stmt = $conn->prepare($stats_sql);
-$stats_stmt->execute();
-$stats_result = $stats_stmt->get_result();
-$stats = $stats_result->fetch_assoc();
+$stats = rc_mig_get_super_admin_property_stats($conn);
 
 // Filter + Search
 $status_filter = $_GET['status'] ?? 'all';
+$contact_filter = $_GET['contact_filter'] ?? 'all';
 $search = trim($_GET['search'] ?? '');
 
 // Pagination
@@ -54,52 +35,24 @@ $limit = 10;
 $page = max(1, (int)($_GET['page'] ?? 1));
 $offset = ($page - 1) * $limit;
 
-// Base query
-$sql = "FROM properties p JOIN users l ON p.landlord_id = l.id WHERE 1=1";
-$params = [];
-$types = "";
+$pageData = rc_mig_get_super_admin_properties_page($conn, (string) $status_filter, (string) $search, (int) $page, (int) $limit, (string) $contact_filter);
+$result = $pageData['rows'];
+$total_records = (int) ($pageData['total_records'] ?? 0);
+$total_pages = (int) ($pageData['total_pages'] ?? 1);
 
-// Apply status filter
-if ($status_filter !== 'all') {
-    $sql .= " AND p.status=?";
-    $params[] = $status_filter;
-    $types .= "s";
+$landlordContacts = [];
+foreach ($result as $row) {
+  $name = trim((string) ($row['landlord_name'] ?? ''));
+  $contact = trim((string) ($row['contact'] ?? ''));
+  if ($name === '') {
+    $name = 'Unknown';
+  }
+  if ($contact === '') {
+    continue;
+  }
+  $key = strtolower($name . '|' . $contact);
+  $landlordContacts[$key] = ['name' => $name, 'contact' => $contact];
 }
-
-// Apply search
-if ($search !== '') {
-    $sql .= " AND (p.title LIKE ? OR l.name LIKE ?)";
-    $searchTerm = "%$search%";
-    $params[] = $searchTerm;
-    $params[] = $searchTerm;
-    $types .= "ss";
-}
-
-// Count total records
-$count_sql = "SELECT COUNT(*) " . $sql;
-$count_stmt = $conn->prepare($count_sql);
-if (!empty($params)) $count_stmt->bind_param($types, ...$params);
-$count_stmt->execute();
-$count_stmt->bind_result($total_records);
-$count_stmt->fetch();
-$count_stmt->close();
-
-$total_pages = ceil($total_records / $limit);
-
-// Fetch paginated data
-$data_sql = "SELECT p.id, p.title, p.price, p.bedrooms, p.bathrooms, p.description, p.status, p.created_at, l.name AS landlord_name "
-          . $sql
-          . " ORDER BY FIELD(p.status,'pending','approved','taken','inactive'), p.created_at DESC LIMIT ?, ?";
-$stmt = $conn->prepare($data_sql);
-
-if (!empty($params)) {
-    $all_params = array_merge($params, [$offset, $limit]);
-    $stmt->bind_param($types."ii", ...$all_params);
-} else {
-    $stmt->bind_param("ii", $offset, $limit);
-}
-$stmt->execute();
-$result = $stmt->get_result();
 
 function format_date($date_str) {
     return date("M d, Y", strtotime($date_str));
@@ -251,6 +204,43 @@ header a.logout:hover {
     gap: 1rem;
     flex-wrap: wrap;
     margin-bottom: 2rem;
+}
+
+.contacts-panel {
+  background: #f8fbff;
+  border: 1px solid #dbe8f7;
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.contacts-panel h3 {
+  margin-bottom: 0.65rem;
+  color: var(--info);
+  font-size: 1rem;
+}
+
+.contact-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.contact-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #d6e3f1;
+  font-size: 0.85rem;
+}
+
+.contact-chip a {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 700;
 }
 
 .search-bar form {
@@ -699,9 +689,31 @@ footer a:hover {
           <option value="taken" <?= $status_filter === 'taken' ? 'selected' : '' ?>>Taken</option>
           <option value="inactive" <?= $status_filter === 'inactive' ? 'selected' : '' ?>>Inactive</option>
         </select>
-        <input type="text" name="search" placeholder="Search by title or landlord name..." value="<?= htmlspecialchars($search) ?>">
+        <label for="contact_filter">Phone:</label>
+        <select name="contact_filter" id="contact_filter">
+          <option value="all" <?= $contact_filter === 'all' ? 'selected' : '' ?>>All</option>
+          <option value="with_number" <?= $contact_filter === 'with_number' ? 'selected' : '' ?>>With Number</option>
+          <option value="missing_number" <?= $contact_filter === 'missing_number' ? 'selected' : '' ?>>Missing Number</option>
+        </select>
+        <input type="text" name="search" placeholder="Search by title, landlord name, or number..." value="<?= htmlspecialchars($search) ?>">
         <button type="submit"><i class="fas fa-search"></i> Search</button>
       </form>
+    </div>
+
+    <div class="contacts-panel">
+      <h3><i class="fas fa-address-book"></i> Landlord Contacts (Current Results)</h3>
+      <?php if (!empty($landlordContacts)): ?>
+        <div class="contact-chips">
+          <?php foreach ($landlordContacts as $contactRow): ?>
+            <span class="contact-chip">
+              <strong><?= htmlspecialchars($contactRow['name']) ?></strong>
+              <a href="tel:<?= htmlspecialchars($contactRow['contact']) ?>"><?= htmlspecialchars($contactRow['contact']) ?></a>
+            </span>
+          <?php endforeach; ?>
+        </div>
+      <?php else: ?>
+        <p style="color: var(--text-light);">No landlord numbers in the current filtered results.</p>
+      <?php endif; ?>
     </div>
 
     <!-- Table -->
@@ -711,6 +723,7 @@ footer a:hover {
           <tr>
             <th>ID</th>
             <th>Landlord</th>
+            <th>Landlord Number</th>
             <th>Property</th>
             <th>Price</th>
             <th>Status</th>
@@ -720,12 +733,15 @@ footer a:hover {
           </tr>
         </thead>
         <tbody>
-          <?php if ($result && $result->num_rows > 0): ?>
-            <?php while ($row = $result->fetch_assoc()): ?>
+          <?php if (!empty($result)): ?>
+            <?php foreach ($result as $row): ?>
             <tr>
               <td data-label="ID"><?= $row['id'] ?></td>
               <td data-label="Landlord">
                 <strong><?= htmlspecialchars($row['landlord_name']) ?></strong>
+              </td>
+              <td data-label="Landlord Number">
+                <?= htmlspecialchars((string) ($row['contact'] ?? 'N/A')) ?>
               </td>
               <td data-label="Property">
                 <strong><?= htmlspecialchars($row['title']) ?></strong><br>
@@ -740,16 +756,13 @@ footer a:hover {
               <td data-label="Images">
                 <div class="img-thumbnails">
                   <?php
-                  $img_stmt = $conn->prepare("SELECT id FROM property_images WHERE property_id=?");
-                  $img_stmt->bind_param("i", $row['id']);
-                  $img_stmt->execute();
-                  $img_result = $img_stmt->get_result();
+                  $img_result = rc_mig_get_property_image_ids($conn, (int) $row['id']);
                   $img_count = 0;
-                  while ($img = $img_result->fetch_assoc()):
+                  foreach ($img_result as $img):
                     $img_count++;
                   ?>
                     <img src="display_image.php?img_id=<?= $img['id'] ?>" class="img-thumb" onclick="openLightbox(event, 'display_image.php?img_id=<?= $img['id'] ?>')" alt="Property image">
-                  <?php endwhile; ?>
+                  <?php endforeach; ?>
                   <?php if ($img_count === 0): ?>
                     <span style="color: var(--text-light); font-size: 0.9rem;">No images</span>
                   <?php endif; ?>
@@ -774,10 +787,10 @@ footer a:hover {
                 </div>
               </td>
             </tr>
-            <?php endwhile; ?>
+            <?php endforeach; ?>
           <?php else: ?>
             <tr>
-              <td colspan="8">
+              <td colspan="9">
                 <div class="empty-state">
                   <i class="fas fa-search"></i>
                   <p>No properties found matching your criteria.</p>
@@ -792,13 +805,13 @@ footer a:hover {
     <!-- Pagination -->
     <div class="pagination">
       <?php if ($page > 1): ?>
-        <a href="?status=<?= $status_filter ?>&search=<?= urlencode($search) ?>&page=<?= $page - 1 ?>" title="Previous page">
+        <a href="?status=<?= $status_filter ?>&contact_filter=<?= urlencode($contact_filter) ?>&search=<?= urlencode($search) ?>&page=<?= $page - 1 ?>" title="Previous page">
           <i class="fas fa-chevron-left"></i> Prev
         </a>
       <?php endif; ?>
       
       <?php for ($i = 1; $i <= $total_pages; $i++): ?>
-        <a href="?status=<?= $status_filter ?>&search=<?= urlencode($search) ?>&page=<?= $i ?>" 
+        <a href="?status=<?= $status_filter ?>&contact_filter=<?= urlencode($contact_filter) ?>&search=<?= urlencode($search) ?>&page=<?= $i ?>" 
            class="<?= $i === $page ? 'active' : '' ?>" 
            title="Go to page <?= $i ?>">
           <?= $i ?>
@@ -806,7 +819,7 @@ footer a:hover {
       <?php endfor; ?>
       
       <?php if ($page < $total_pages): ?>
-        <a href="?status=<?= $status_filter ?>&search=<?= urlencode($search) ?>&page=<?= $page + 1 ?>" title="Next page">
+        <a href="?status=<?= $status_filter ?>&contact_filter=<?= urlencode($contact_filter) ?>&search=<?= urlencode($search) ?>&page=<?= $page + 1 ?>" title="Next page">
           Next <i class="fas fa-chevron-right"></i>
         </a>
       <?php endif; ?>

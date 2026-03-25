@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'landlord') {
     header("Location: login.php");
@@ -10,6 +10,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'landlord') {
 $landlord_id = $_SESSION['user_id'];
 $message = "";
 $error = "";
+$back_url = 'landlord_dashboard.php';
 
 // Handle payment approval/rejection
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -132,6 +133,24 @@ body {
   font-size: clamp(1.5rem, 3vw, 2rem);
   letter-spacing: -0.02em;
   margin-bottom: 8px;
+}
+.hero-actions {
+  margin-top: 14px;
+}
+.hero-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+  border: 1px solid rgba(255,255,255,0.45);
+  border-radius: 10px;
+  padding: 9px 12px;
+  background: rgba(255,255,255,0.12);
+}
+.hero-back:hover {
+  background: rgba(255,255,255,0.2);
 }
 .stats-grid {
   display: grid;
@@ -312,6 +331,9 @@ body {
   <div class="hero">
     <h1>💰 Payment Management</h1>
     <p>Review and approve rental payments from renters</p>
+    <div class="hero-actions">
+      <a class="hero-back" href="<?php echo htmlspecialchars($back_url); ?>"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+    </div>
   </div>
 
   <div class="stats-grid">

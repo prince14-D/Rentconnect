@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'renter') {
     header("Location: login.php");
@@ -10,6 +10,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'renter') {
 $renter_id = $_SESSION['user_id'];
 $payment_id = intval($_GET['payment_id'] ?? 0);
 $booking_id = intval($_GET['booking_id'] ?? 0);
+$back_url = 'rent_payments.php';
 
 // If payment_id is provided, fetch payment details
 $payment = null;
@@ -109,6 +110,24 @@ header {
 .header-content p {
   font-size: 0.95rem;
   opacity: 0.9;
+}
+
+.header-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: #fff;
+  font-weight: 700;
+  margin-top: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.header-back:hover {
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .container {
@@ -361,6 +380,7 @@ textarea {
   <div class="header-content">
     <h1>💳 Make Payment</h1>
     <p>Secure payment for <?php echo date('F Y', strtotime($payment['payment_month'])); ?></p>
+    <a class="header-back" href="<?php echo htmlspecialchars($back_url); ?>">&larr; Back to Payments</a>
   </div>
 </header>
 

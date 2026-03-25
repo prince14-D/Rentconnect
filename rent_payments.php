@@ -1,6 +1,6 @@
 <?php
 session_start();
-include 'db.php';
+include 'app_init.php';
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'renter') {
     header('Location: login.php');
@@ -10,6 +10,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'renter') {
 $renter_id = (int) $_SESSION['user_id'];
 $message = '';
 $error = '';
+$back_url = 'renter_dashboard.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $booking_id = (int) ($_POST['booking_id'] ?? 0);
@@ -63,14 +64,33 @@ button { padding: 10px 12px; border: 0; border-radius: 7px; background: #1f8f67;
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e9eef5; }
 .small { color: #5d6579; font-size: 13px; }
+.header-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  padding: 9px 11px;
+  border-radius: 7px;
+  border: 1px solid #cad4e3;
+  color: #1f2430;
+  background: #f7f9fd;
+  font-weight: 700;
+}
+.back-btn:hover { background: #edf2f9; }
 @media (max-width: 760px) { form .row { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="card">
-    <h1>Rent Payments</h1>
-    <p class="small">Submit rent and track payment history</p>
+    <div class="header-row">
+      <div>
+        <h1>Rent Payments</h1>
+        <p class="small">Submit rent and track payment history</p>
+      </div>
+      <a class="back-btn" href="<?php echo htmlspecialchars($back_url); ?>">&larr; Back to Dashboard</a>
+    </div>
   </div>
 
   <?php if ($message !== ''): ?><div class="alert ok"><?php echo htmlspecialchars($message); ?></div><?php endif; ?>

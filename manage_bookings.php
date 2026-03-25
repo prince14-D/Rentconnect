@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
@@ -11,6 +11,7 @@ $user_id = $_SESSION['user_id'];
 $role = $_SESSION['role'];
 $message = "";
 $error = "";
+$back_url = ($role === 'landlord') ? 'landlord_dashboard.php' : 'renter_dashboard.php';
 
 // Handle booking cancellation
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'cancel') {
@@ -44,8 +45,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         
         if ($stmt->execute()) {
             // Update property booking status back to available
-            $conn->query("UPDATE properties SET booking_status = 'available' WHERE id = " . intval($property_id));
+          if (rc_mig_set_property_booking_status($conn, (int) $property_id, 'available')) {
             $message = "✓ Booking cancelled successfully. Property is now available.";
+          } else {
+            $message = "✓ Booking cancelled, but property availability update is pending.";
+          }
         } else {
             $error = "Failed to cancel booking";
         }
@@ -176,6 +180,24 @@ body {
   font-size: clamp(1.5rem, 3vw, 2rem);
   letter-spacing: -0.02em;
   margin-bottom: 8px;
+}
+.hero-actions {
+  margin-top: 14px;
+}
+.hero-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+  border: 1px solid rgba(255,255,255,0.45);
+  border-radius: 10px;
+  padding: 9px 12px;
+  background: rgba(255,255,255,0.12);
+}
+.hero-back:hover {
+  background: rgba(255,255,255,0.2);
 }
 .alert {
   padding: 12px 16px;
@@ -336,6 +358,9 @@ body {
   <div class="hero">
     <h1>📋 <?php echo ($role === 'landlord') ? 'Booked Properties' : 'My Bookings'; ?></h1>
     <p><?php echo ($role === 'landlord') ? 'Manage renter agreements and track payments' : 'View your rental agreements'; ?></p>
+    <div class="hero-actions">
+      <a class="hero-back" href="<?php echo htmlspecialchars($back_url); ?>"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+    </div>
   </div>
 
   <?php if ($message): ?>

@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 // Ensure landlord is logged in
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'landlord') {
@@ -8,15 +8,12 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'landlord') {
     exit;
 }
 
-$landlord_id = $_SESSION['user_id'];
+$landlord_id = (int) $_SESSION['user_id'];
 $message = "";
 $prop_id = intval($_GET['id'] ?? 0);
 
 // Fetch existing property
-$stmt = $conn->prepare("SELECT * FROM properties WHERE id=? AND (owner_id=? OR landlord_id=?)");
-$stmt->bind_param("iii", $prop_id, $landlord_id, $landlord_id);
-$stmt->execute();
-$property = $stmt->get_result()->fetch_assoc();
+$property = rc_mig_get_property_for_landlord($conn, $prop_id, $landlord_id);
 
 if (!$property) {
     die("Property not found.");
@@ -24,60 +21,54 @@ if (!$property) {
 
 // Handle update
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $title = $_POST['title'];
-    $location = $_POST['location'];
-    $price = $_POST['price'];
-    $contact = $_POST['contact'];
-    $bedrooms = $_POST['bedrooms'];
-    $bathrooms = $_POST['bathrooms'];
-    $description = $_POST['description'];
+  $title = trim((string) ($_POST['title'] ?? ''));
+  $location = trim((string) ($_POST['location'] ?? ''));
+  $price = (float) ($_POST['price'] ?? 0);
+  $contact = trim((string) ($_POST['contact'] ?? ''));
+  $bedrooms = (int) ($_POST['bedrooms'] ?? 0);
+  $bathrooms = (int) ($_POST['bathrooms'] ?? 0);
+  $description = trim((string) ($_POST['description'] ?? ''));
 
-    // Update property info
-    $stmt = $conn->prepare("UPDATE properties
-        SET title=?, location=?, price=?, contact=?, bedrooms=?, bathrooms=?, description=?
-        WHERE id=? AND (owner_id=? OR landlord_id=?)");
-    $stmt->bind_param(
-        "ssdsiisiii",
-        $title,
-        $location,
-        $price,
-        $contact,
-        $bedrooms,
-        $bathrooms,
-        $description,
-        $prop_id,
-        $landlord_id,
-        $landlord_id
-    );
+  $updated = rc_mig_update_property_for_landlord($conn, $prop_id, $landlord_id, [
+    'title' => $title,
+    'location' => $location,
+    'price' => $price,
+    'contact' => $contact,
+    'bedrooms' => $bedrooms,
+    'bathrooms' => $bathrooms,
+    'description' => $description,
+  ]);
 
-    if ($stmt->execute()) {
+  if (!empty($updated['ok'])) {
+    $failedImages = 0;
         // Handle new image uploads
         if (!empty($_FILES['photos']['name'][0])) {
             $total_files = count($_FILES['photos']['name']);
             for ($i = 0; $i < $total_files; $i++) {
-                if ($_FILES['photos']['error'][$i] === 0) {
-                    $imageData = file_get_contents($_FILES['photos']['tmp_name'][$i]);
-                    $mimeType = mime_content_type($_FILES['photos']['tmp_name'][$i]);
+        if (($_FILES['photos']['error'][$i] ?? UPLOAD_ERR_NO_FILE) === 0) {
+          $tmpPath = (string) ($_FILES['photos']['tmp_name'][$i] ?? '');
+          $imageData = $tmpPath !== '' ? file_get_contents($tmpPath) : false;
+          $mimeType = $tmpPath !== '' ? (string) mime_content_type($tmpPath) : '';
 
-                    $img_stmt = $conn->prepare("INSERT INTO property_images (property_id, image, mime_type) VALUES (?, ?, ?)");
-                    $null = null;
-                    $img_stmt->bind_param("ibs", $prop_id, $null, $mimeType);
-                    $img_stmt->send_long_data(1, $imageData);
-                    $img_stmt->execute();
+          if (!is_string($imageData) || $imageData === '' || $mimeType === '' || !rc_mig_add_property_image($conn, $prop_id, $imageData, $mimeType)) {
+            $failedImages++;
+          }
                 }
             }
         }
-        $message = "Property updated successfully.";
+
+    $message = $failedImages > 0
+      ? "Property updated, but {$failedImages} image(s) failed to upload."
+      : "Property updated successfully.";
     } else {
-        $message = "Database error: " . $stmt->error;
+    $message = "Update failed: " . htmlspecialchars((string) ($updated['error'] ?? 'unknown error'));
     }
+
+  $property = rc_mig_get_property_for_landlord($conn, $prop_id, $landlord_id);
 }
 
 // Fetch property images
-$img_stmt = $conn->prepare("SELECT id FROM property_images WHERE property_id=?");
-$img_stmt->bind_param("i", $prop_id);
-$img_stmt->execute();
-$images = $img_stmt->get_result();
+$images = rc_mig_get_property_image_ids($conn, $prop_id);
 ?>
 
 <!DOCTYPE html>
@@ -287,11 +278,11 @@ textarea {
       <p class="alert"><?php echo htmlspecialchars($message); ?></p>
     <?php endif; ?>
 
-    <?php if ($images->num_rows > 0): ?>
+    <?php if (count($images) > 0): ?>
       <div class="carousel" id="carousel-<?php echo $prop_id; ?>">
-        <?php while ($row = $images->fetch_assoc()): ?>
+        <?php foreach ($images as $row): ?>
           <img src="display_image.php?img_id=<?php echo $row['id']; ?>" alt="Property Image">
-        <?php endwhile; ?>
+        <?php endforeach; ?>
         <button type="button" class="prev">&#10094;</button>
         <button type="button" class="next">&#10095;</button>
       </div>

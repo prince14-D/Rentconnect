@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
@@ -12,51 +12,28 @@ $role = $_SESSION['role'];
 $property_id = intval($_GET['property_id'] ?? 0);
 $with_user = intval($_GET['with'] ?? 0);
 
-$stmt = $conn->prepare("SELECT name, role FROM users WHERE id=? LIMIT 1");
-$stmt->bind_param("i", $with_user);
-$stmt->execute();
-$with_res = $stmt->get_result();
-if ($with_res->num_rows == 0) {
+if ($property_id <= 0 || $with_user <= 0) {
+  die('Invalid chat request.');
+}
+
+$with_row = rc_mig_get_user_by_id($conn, $with_user);
+if (!$with_row) {
     die("User not found.");
 }
-$with_name = $with_res->fetch_assoc()['name'];
+$with_name = (string) ($with_row['name'] ?? 'User');
 
-if ($role === 'renter') {
-    $stmt = $conn->prepare("SELECT * FROM requests r WHERE r.user_id=? AND r.property_id=?");
-    $stmt->bind_param("ii", $user_id, $property_id);
-} elseif ($role === 'landlord') {
-    $stmt = $conn->prepare("SELECT * FROM properties WHERE id=? AND owner_id=?");
-    $stmt->bind_param("ii", $property_id, $user_id);
-} else {
-    die("Access denied.");
-}
-$stmt->execute();
-$res = $stmt->get_result();
-if ($res->num_rows == 0) {
+if (!rc_mig_can_access_chat($conn, (int) $user_id, (string) $role, $property_id, $with_user)) {
     die("Access denied to this chat.");
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message'])) {
     $message = trim($_POST['message']);
     if ($message !== '') {
-        $stmt = $conn->prepare("INSERT INTO messages (property_id, sender_id, receiver_id, message) VALUES (?,?,?,?)");
-        $stmt->bind_param("iiis", $property_id, $user_id, $with_user, $message);
-        $stmt->execute();
+    rc_mig_create_chat_message($conn, $property_id, (int) $user_id, $with_user, $message);
     }
 }
 
-$stmt = $conn->prepare("
-    SELECT m.*, u.name AS sender_name
-    FROM messages m
-    JOIN users u ON m.sender_id=u.id
-    WHERE m.property_id = ? AND
-          ((m.sender_id = ? AND m.receiver_id = ?) OR
-           (m.sender_id = ? AND m.receiver_id = ?))
-    ORDER BY m.created_at ASC
-");
-$stmt->bind_param("iiiii", $property_id, $user_id, $with_user, $with_user, $user_id);
-$stmt->execute();
-$messages = $stmt->get_result();
+$messages = rc_mig_get_chat_messages($conn, $property_id, (int) $user_id, $with_user);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -197,13 +174,13 @@ body {
   </header>
 
   <section class="messages" id="chatMessages">
-    <?php while ($row = $messages->fetch_assoc()): ?>
+    <?php foreach ($messages as $row): ?>
       <article class="bubble <?php echo ($row['sender_id'] == $user_id) ? 'sent' : 'received'; ?>">
         <strong><?php echo htmlspecialchars($row['sender_name']); ?>:</strong>
         <?php echo htmlspecialchars($row['message']); ?>
         <small><?php echo htmlspecialchars($row['created_at']); ?></small>
       </article>
-    <?php endwhile; ?>
+    <?php endforeach; ?>
   </section>
 
   <form class="chat-input" method="post">

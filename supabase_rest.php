@@ -4,27 +4,36 @@ require_once __DIR__ . "/supabase_config.php";
 
 /**
  * Upsert a user record into Supabase via PostgREST.
- * This is best-effort and should not block local auth when Supabase is unavailable.
+ * This is the canonical server-side auth profile sync path.
  */
 function rc_supabase_upsert_user(array $user): array {
+    if (!rc_supabase_rest_enabled()) {
+        return ['ok' => false, 'error' => 'Supabase REST integration is disabled'];
+    }
+
     $cfg = rc_supabase_config();
     $url = rtrim((string) ($cfg['url'] ?? ''), '/');
-    $key = (string) ($cfg['publishableKey'] ?? '');
+    $key = (string) ($cfg['restKey'] ?? '');
 
     if ($url === '' || $key === '') {
         return ['ok' => false, 'error' => 'Supabase config is missing'];
     }
 
     $endpoint = $url . '/rest/v1/users?on_conflict=email';
+
+    $firebaseUid = isset($user['firebase_uid']) ? trim((string) $user['firebase_uid']) : '';
+    $avatarUrl = isset($user['avatar_url']) ? trim((string) $user['avatar_url']) : '';
+
     $payload = [
         [
             'email' => (string) ($user['email'] ?? ''),
             'name' => (string) ($user['name'] ?? 'User'),
             'password' => (string) ($user['password'] ?? ''),
             'role' => (string) ($user['role'] ?? 'renter'),
-            'firebase_uid' => (string) ($user['firebase_uid'] ?? ''),
+            // Keep nullable fields as null to satisfy unique constraints across many users.
+            'firebase_uid' => $firebaseUid !== '' ? $firebaseUid : null,
             'auth_provider' => (string) ($user['auth_provider'] ?? 'firebase_google'),
-            'avatar_url' => (string) ($user['avatar_url'] ?? ''),
+            'avatar_url' => $avatarUrl !== '' ? $avatarUrl : null,
             'email_verified' => (bool) ($user['email_verified'] ?? false),
         ],
     ];

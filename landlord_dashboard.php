@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 // Ensure landlord access
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'landlord') {
@@ -12,48 +12,12 @@ $landlord_id = $_SESSION['user_id'];
 $message = $_SESSION['message'] ?? '';
 unset($_SESSION['message']);
 
-// Fetch property counts
-$counts = ['pending' => 0, 'approved' => 0, 'taken' => 0];
-$stmt = $conn->prepare("SELECT status, COUNT(*) as count FROM properties WHERE landlord_id=? GROUP BY status");
-$stmt->bind_param("i", $landlord_id);
-$stmt->execute();
-$result = $stmt->get_result();
-while ($row = $result->fetch_assoc()) {
-    $counts[$row['status']] = $row['count'];
-}
-$stmt->close();
-
-// Fetch pending rental requests count
-$stmt2 = $conn->prepare("SELECT COUNT(*) FROM rental_requests WHERE property_id IN (SELECT id FROM properties WHERE landlord_id=?) AND status='pending'");
-$stmt2->bind_param("i", $landlord_id);
-$stmt2->execute();
-$stmt2->bind_result($pending_requests);
-$stmt2->fetch();
-$stmt2->close();
-
-// Fetch booking stats
-$stmt3 = $conn->prepare("SELECT COUNT(*) as booked_count FROM bookings WHERE landlord_id=? AND status='active'");
-$stmt3->bind_param("i", $landlord_id);
-$stmt3->execute();
-$stmt3->bind_result($booked_count);
-$stmt3->fetch();
-$stmt3->close();
-
-// Fetch pending payment approvals
-$stmt4 = $conn->prepare("SELECT COUNT(*) as pending_payments FROM payments WHERE landlord_id=? AND status='pending'");
-$stmt4->bind_param("i", $landlord_id);
-$stmt4->execute();
-$stmt4->bind_result($pending_payments);
-$stmt4->fetch();
-$stmt4->close();
-
-// Fetch pending income
-$stmt5 = $conn->prepare("SELECT COALESCE(SUM(amount), 0) as pending_income FROM payments WHERE landlord_id=? AND status='pending'");
-$stmt5->bind_param("i", $landlord_id);
-$stmt5->execute();
-$stmt5->bind_result($pending_income);
-$stmt5->fetch();
-$stmt5->close();
+$dashboardStats = rc_mig_get_landlord_dashboard_stats($conn, (int) $landlord_id);
+$counts = $dashboardStats['counts'];
+$pending_requests = (int) $dashboardStats['pending_requests'];
+$booked_count = (int) $dashboardStats['booked_count'];
+$pending_payments = (int) $dashboardStats['pending_payments'];
+$pending_income = (float) $dashboardStats['pending_income'];
 ?>
 <!DOCTYPE html>
 <html lang="en">

@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 // Validate property ID
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {

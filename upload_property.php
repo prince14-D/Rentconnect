@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 // Check if landlord is logged in
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'landlord') {
@@ -8,60 +8,53 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'landlord') {
     exit;
 }
 
-$landlord_id = $_SESSION['user_id'];
+$landlord_id = (int) $_SESSION['user_id'];
 $message = "";
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $title = $_POST['title'];
-    $location = $_POST['location'];
-    $price = $_POST['price'];
-    $contact = $_POST['contact'];
-    $bedrooms = $_POST['bedrooms'];
-    $bathrooms = $_POST['bathrooms'];
-    $description = $_POST['description'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $title = trim((string) ($_POST['title'] ?? ''));
+    $location = trim((string) ($_POST['location'] ?? ''));
+    $price = (float) ($_POST['price'] ?? 0);
+    $contact = trim((string) ($_POST['contact'] ?? ''));
+    $bedrooms = (int) ($_POST['bedrooms'] ?? 0);
+    $bathrooms = (int) ($_POST['bathrooms'] ?? 0);
+    $description = trim((string) ($_POST['description'] ?? ''));
 
-    if (isset($_FILES['photo']) && $_FILES['photo']['error'] == 0) {
-        $photoName = basename($_FILES['photo']['name']);
-        $targetDir = "uploads/";
-        $targetFile = $targetDir . $photoName;
-        $imageData = file_get_contents($_FILES['photo']['tmp_name']); // for BLOB
+    if (isset($_FILES['photo']) && (int) ($_FILES['photo']['error'] ?? UPLOAD_ERR_NO_FILE) === 0) {
+        $tmpPath = (string) ($_FILES['photo']['tmp_name'] ?? '');
+        $imageData = $tmpPath !== '' ? file_get_contents($tmpPath) : false;
+        $mimeType = $tmpPath !== '' ? (string) mime_content_type($tmpPath) : '';
 
-        if (move_uploaded_file($_FILES['photo']['tmp_name'], $targetFile)) {
-            // Insert into DB
-            $stmt = $conn->prepare("INSERT INTO properties
-                (title, location, price, contact, bedrooms, bathrooms, description, photo, photo_blob, owner_id, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+        if (!is_string($imageData) || $imageData === '' || $mimeType === '') {
+            $message = 'Failed to read uploaded photo.';
+      } else {
+            $created = rc_mig_create_property($conn, $landlord_id, [
+                'title' => $title,
+                'location' => $location,
+                'price' => $price,
+                'contact' => $contact,
+                'bedrooms' => $bedrooms,
+                'bathrooms' => $bathrooms,
+                'description' => $description,
+                'status' => 'pending',
+            ]);
 
-            $null = null; // For blob
-            $stmt->bind_param(
-                "ssdsiissbi",
-                $title,
-                $location,
-                $price,
-                $contact,
-                $bedrooms,
-                $bathrooms,
-                $description,
-                $photoName,
-                $null,
-                $landlord_id
-            );
-            $stmt->send_long_data(8, $imageData); // bind blob data
-
-            if ($stmt->execute()) {
-                $message = "Property uploaded successfully.";
+            if (!empty($created['ok'])) {
+                $propertyId = (int) ($created['id'] ?? 0);
+          if ($propertyId > 0 && rc_mig_add_property_image($conn, $propertyId, $imageData, $mimeType)) {
+            $message = 'Property uploaded successfully.';
+          } else {
+            $message = 'Property created, but image storage failed.';
+                }
             } else {
-                $message = "Error: " . $stmt->error;
+                $message = 'Failed to upload property: ' . htmlspecialchars((string) ($created['error'] ?? 'unknown error'));
             }
-        } else {
-            $message = "Failed to upload photo.";
         }
     } else {
-        $message = "Please select a photo.";
+        $message = 'Please select a photo.';
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -217,7 +210,7 @@ textarea {
 <main class="container">
   <section class="hero">
     <h1>Upload New Property</h1>
-    <p>This flow uploads one featured image and saves it to both file storage and database blob.</p>
+    <p>This flow uploads one featured image and stores it through Supabase-backed image storage.</p>
   </section>
 
   <section class="card">

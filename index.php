@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 // --- Search Filters ---
 $search_location = isset($_GET['location']) ? trim($_GET['location']) : '';
@@ -11,51 +11,15 @@ $max_price = isset($_GET['max_price']) ? floatval($_GET['max_price']) : 0;
 $user_id = $_SESSION['user_id'] ?? null;
 $user_role = $_SESSION['role'] ?? null;
 
-// --- Base SQL ---
-$sql = "SELECT p.*, l.name AS landlord_name
-        FROM properties p
-        JOIN users l ON p.landlord_id = l.id
-        WHERE 1=1 ";
-$params = [];
-$types = "";
-
-// --- Role-based filtering ---
-if ($user_role === 'landlord') {
-    // Landlord sees their own pending and approved properties
-    $sql .= " AND p.landlord_id = ? AND p.status IN ('pending', 'approved') ";
-    $types .= "i";
-    $params[] = $user_id;
-} else {
-    // Visitors/renters see only approved properties
-    $sql .= " AND p.status = 'approved' ";
-}
-
-// --- Apply search filters ---
-if (!empty($search_location)) {
-    $sql .= " AND p.location LIKE ? ";
-    $types .= "s";
-    $params[] = "%$search_location%";
-}
-if ($min_price > 0) {
-    $sql .= " AND p.price >= ? ";
-    $types .= "d";
-    $params[] = $min_price;
-}
-if ($max_price > 0) {
-    $sql .= " AND p.price <= ? ";
-    $types .= "d";
-    $params[] = $max_price;
-}
-
-$sql .= " ORDER BY p.created_at DESC LIMIT 12";
-
-// --- Prepare and execute ---
-$stmt = $conn->prepare($sql);
-if ($types) {
-    $stmt->bind_param($types, ...$params);
-}
-$stmt->execute();
-$properties = $stmt->get_result();
+$properties = rc_mig_get_index_properties(
+    $conn,
+    $user_id !== null ? (int) $user_id : null,
+    $user_role !== null ? (string) $user_role : null,
+    $search_location,
+    $min_price,
+    $max_price,
+    12
+);
 ?>
 
 <!DOCTYPE html>
@@ -702,18 +666,15 @@ $properties = $stmt->get_result();
         </div>
 
         <div class="properties">
-            <?php if ($properties->num_rows > 0): ?>
-                <?php while ($property = $properties->fetch_assoc()): ?>
+            <?php if (!empty($properties)): ?>
+                <?php foreach ($properties as $property): ?>
                     <article class="property">
                         <div class="carousel" id="carousel-<?php echo $property['id']; ?>">
                             <?php
-                            $img_stmt = $conn->prepare("SELECT id FROM property_images WHERE property_id=?");
-                            $img_stmt->bind_param("i", $property['id']);
-                            $img_stmt->execute();
-                            $images = $img_stmt->get_result();
-                            if ($images->num_rows > 0) {
+                            $images = rc_mig_get_property_image_ids($conn, (int) $property['id']);
+                            if (!empty($images)) {
                                 $first = true;
-                                while ($row = $images->fetch_assoc()) {
+                                foreach ($images as $row) {
                                     echo '<img src="display_image.php?img_id=' . $row['id'] . '" class="' . ($first ? 'active' : '') . '" alt="Property image">';
                                     $first = false;
                                 }
@@ -738,7 +699,7 @@ $properties = $stmt->get_result();
                             <a class="view-link" href="login.php">View Details</a>
                         </div>
                     </article>
-                <?php endwhile; ?>
+                <?php endforeach; ?>
             <?php else: ?>
                 <div class="empty-state">No properties found for your current search. Try adjusting your filters.</div>
             <?php endif; ?>

@@ -1,8 +1,9 @@
 <?php
 
+require_once __DIR__ . '/supabase_migration.php';
 require_once __DIR__ . '/supabase_rest.php';
 
-function rc_register_user(mysqli $conn, string $name, string $email, string $rawPassword, string $role): array {
+function rc_register_user($conn, string $name, string $email, string $rawPassword, string $role): array {
     $name = trim($name);
     $email = trim($email);
 
@@ -22,31 +23,12 @@ function rc_register_user(mysqli $conn, string $name, string $email, string $raw
         return ['ok' => false, 'error' => 'Invalid role selected.'];
     }
 
-    $check = $conn->prepare('SELECT id FROM users WHERE email=? LIMIT 1');
-    if (!$check) {
-        return ['ok' => false, 'error' => 'Something went wrong. Try again!'];
-    }
-
-    $check->bind_param('s', $email);
-    if (!$check->execute()) {
-        return ['ok' => false, 'error' => 'Something went wrong. Try again!'];
-    }
-
-    if ($check->get_result()->num_rows > 0) {
+    $existing = rc_mig_get_user_auth_by_email($conn, $email);
+    if ($existing) {
         return ['ok' => false, 'error' => 'Email already registered. Please login.'];
     }
 
     $password = password_hash($rawPassword, PASSWORD_BCRYPT);
-    $stmt = $conn->prepare('INSERT INTO users (name, email, password, role, created_at) VALUES (?, ?, ?, ?, NOW())');
-    if (!$stmt) {
-        return ['ok' => false, 'error' => 'Something went wrong. Try again!'];
-    }
-
-    $stmt->bind_param('ssss', $name, $email, $password, $role);
-    if (!$stmt->execute()) {
-        return ['ok' => false, 'error' => 'Something went wrong. Try again!'];
-    }
-
     $supabaseSync = rc_supabase_upsert_user([
         'email' => $email,
         'name' => $name,
@@ -56,14 +38,19 @@ function rc_register_user(mysqli $conn, string $name, string $email, string $raw
         'email_verified' => false,
     ]);
     if (!$supabaseSync['ok']) {
-        error_log('Supabase user sync warning: ' . ($supabaseSync['error'] ?? 'unknown error'));
+        return ['ok' => false, 'error' => 'Something went wrong. Try again!'];
+    }
+
+    $created = rc_mig_get_user_auth_by_email($conn, $email);
+    if (!$created) {
+        return ['ok' => false, 'error' => 'Failed to load newly created user profile.'];
     }
 
     return [
         'ok' => true,
-        'user_id' => (int) $conn->insert_id,
-        'name' => $name,
-        'email' => $email,
-        'role' => $role,
+        'user_id' => (int) ($created['id'] ?? 0),
+        'name' => (string) ($created['name'] ?? $name),
+        'email' => (string) ($created['email'] ?? $email),
+        'role' => (string) ($created['role'] ?? $role),
     ];
 }

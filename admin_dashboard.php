@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "db.php";
+include "app_init.php";
 
 // Only admin access
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
@@ -11,32 +11,25 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 // Handle approve/decline property
 if (isset($_GET['approve_property'])) {
     $id = intval($_GET['approve_property']);
-    $conn->query("UPDATE properties SET status='approved' WHERE id=$id");
+    rc_mig_set_property_status($conn, $id, 'approved');
     header("Location: admin_dashboard.php");
     exit;
 }
 
 if (isset($_GET['decline_property'])) {
     $id = intval($_GET['decline_property']);
-    $conn->query("UPDATE properties SET status='declined' WHERE id=$id");
+    rc_mig_set_property_status($conn, $id, 'declined');
     header("Location: admin_dashboard.php");
     exit;
 }
 
-// Stats
-$total_users = $conn->query("SELECT COUNT(*) AS c FROM users")->fetch_assoc()['c'];
-$total_properties = $conn->query("SELECT COUNT(*) AS c FROM properties")->fetch_assoc()['c'];
-$total_requests = $conn->query("SELECT COUNT(*) AS c FROM requests")->fetch_assoc()['c'];
-$pending_requests = $conn->query("SELECT COUNT(*) AS c FROM requests WHERE status='pending'")->fetch_assoc()['c'];
+$dashStats = rc_mig_get_admin_dashboard_stats($conn);
+$total_users = (int) ($dashStats['total_users'] ?? 0);
+$total_properties = (int) ($dashStats['total_properties'] ?? 0);
+$total_requests = (int) ($dashStats['total_requests'] ?? 0);
+$pending_requests = (int) ($dashStats['pending_requests'] ?? 0);
 
-// Pending properties
-$pending_properties = $conn->query("
-    SELECT p.id, p.title, p.location, p.price, u.name AS owner_name, p.created_at
-    FROM properties p
-    JOIN users u ON u.id = COALESCE(p.owner_id, p.landlord_id)
-    WHERE p.status='pending'
-    ORDER BY p.created_at DESC
-");
+$pending_properties = rc_mig_get_pending_properties_for_admin($conn);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -250,7 +243,7 @@ th {
 
     <section class="section">
         <h3>Pending Properties</h3>
-        <?php if ($pending_properties->num_rows > 0): ?>
+        <?php if (count($pending_properties) > 0): ?>
             <div class="table-wrap">
                 <table>
                     <thead>
@@ -264,7 +257,7 @@ th {
                         </tr>
                     </thead>
                     <tbody>
-                        <?php while ($row = $pending_properties->fetch_assoc()): ?>
+                        <?php foreach ($pending_properties as $row): ?>
                             <tr>
                                 <td><?php echo htmlspecialchars($row['title']); ?></td>
                                 <td><?php echo htmlspecialchars($row['location']); ?></td>
@@ -276,7 +269,7 @@ th {
                                     <a href="?decline_property=<?php echo (int) $row['id']; ?>" class="decline">Decline</a>
                                 </td>
                             </tr>
-                        <?php endwhile; ?>
+                        <?php endforeach; ?>
                     </tbody>
                 </table>
             </div>
