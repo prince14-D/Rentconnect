@@ -5,47 +5,36 @@ include "db.php";
 $message = "";
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['email']);
-
-    // Remove expired tokens (older than 1 hour)
-    $stmt_exp = $conn->prepare("DELETE FROM password_resets WHERE created_at < NOW() - INTERVAL 1 HOUR");
-    $stmt_exp->execute();
-    $stmt_exp->close();
-
-    // Check if email exists
-    $stmt = $conn->prepare("SELECT id FROM users WHERE email=? LIMIT 1");
-    $stmt->bind_param("s", $email);
-    $stmt->execute();
-    $stmt->bind_result($user_id);
-
-    if ($stmt->fetch()) {
-        $stmt->close();
-
-        // Generate secure token
-        $token = bin2hex(random_bytes(16));
-
-        // Store token in database
-        $stmt2 = $conn->prepare("INSERT INTO password_resets (user_id, token) VALUES (?, ?)");
-        $stmt2->bind_param("is", $user_id, $token);
-        $stmt2->execute();
-        $stmt2->close();
-
-        // Generate reset link dynamically
-        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
-        $host = $_SERVER['HTTP_HOST'];
-        $reset_link = $protocol . "://" . $host . "/reset-password.php?token=" . $token;
-
-        $subject = "RentConnect Password Reset";
-        $message_body = "Click this link to reset your password: " . $reset_link;
-        $headers = "From: no-reply@rentconnect.com\r\n";
-        mail($email, $subject, $message_body, $headers);
-
-        $_SESSION['success_message'] = "A password reset link has been sent to your email.";
-        header("Location: forgot-password.php");
-        exit();
+    $email = trim((string) ($_POST['email'] ?? ''));
+    if ($email === '') {
+        $message = "Please enter your email address.";
     } else {
-        $message = "No account found with this email.";
-        $stmt->close();
+        rc_mig_prune_password_reset_tokens($conn, 3600);
+
+        $user = rc_mig_get_user_auth_by_email($conn, $email);
+        if ($user) {
+            $user_id = (int) ($user['id'] ?? 0);
+            $token = bin2hex(random_bytes(16));
+
+            if (!rc_mig_store_password_reset_token($conn, $user_id, $token)) {
+                $message = "Unable to create reset request. Please try again.";
+            } else {
+                $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+                $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                $reset_link = $protocol . "://" . $host . "/reset-password.php?token=" . urlencode($token);
+
+                $subject = "RentConnect Password Reset";
+                $message_body = "Click this link to reset your password: " . $reset_link;
+                $headers = "From: no-reply@rentconnect.com\r\n";
+                @mail($email, $subject, $message_body, $headers);
+
+                $_SESSION['success_message'] = "A password reset link has been sent to your email.";
+                header("Location: forgot-password.php");
+                exit();
+            }
+        } else {
+            $message = "No account found with this email.";
+        }
     }
 }
 ?>
@@ -55,6 +44,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="apple-touch-icon" href="/favicon.svg" />
+<link rel="icon" href="/favicon.svg" />
 <title>Forgot Password - RentConnect</title>
 <style>
 body {
@@ -143,12 +134,12 @@ body {
     <p>Enter your email and we’ll send you a reset link.</p>
 
     <?php if (isset($_SESSION['success_message'])): ?>
-        <p class="success"><?= $_SESSION['success_message']; ?></p>
+        <p class="success"><?php echo htmlspecialchars($_SESSION['success_message']); ?></p>
         <?php unset($_SESSION['success_message']); ?>
     <?php endif; ?>
 
     <?php if ($message): ?>
-        <p class="message"><?= $message; ?></p>
+        <p class="message"><?php echo htmlspecialchars($message); ?></p>
     <?php endif; ?>
 
     <form method="post" action="">

@@ -1,4 +1,7 @@
 <?php
+require_once __DIR__ . "/supabase_config.php";
+require_once __DIR__ . "/supabase_migration.php";
+
 $host = "localhost";
 $user = "rentuser";
 $pass = "StrongPassword123!"; // use your password

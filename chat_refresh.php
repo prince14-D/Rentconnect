@@ -25,10 +25,11 @@ $stmt->execute();
 $messages = $stmt->get_result();
 
 // Output messages
-while($row = $messages->fetch_assoc()):
+while ($row = $messages->fetch_assoc()):
 ?>
-    <div class="message <?= ($row['sender_id'] == $user_id) ? 'sent' : 'received'; ?>">
-        <strong><?= htmlspecialchars($row['sender_name']); ?>:</strong> <?= htmlspecialchars($row['message']); ?>
-        <div style="font-size:0.7em; color:#555; margin-top:2px;"><?= $row['created_at']; ?></div>
-    </div>
+    <article class="bubble <?= ($row['sender_id'] == $user_id) ? 'sent' : 'received'; ?>">
+        <strong><?= htmlspecialchars($row['sender_name']); ?>:</strong>
+        <?= htmlspecialchars($row['message']); ?>
+        <small><?= htmlspecialchars($row['created_at']); ?></small>
+    </article>
 <?php endwhile; ?>

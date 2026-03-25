@@ -30,17 +30,17 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 if ($result->num_rows === 0) {
-    echo "<p style='text-align:center;color:#777;'>No messages yet. Start the conversation 👋</p>";
+    echo "<p class='empty-msg'>No messages yet. Start the conversation.</p>";
 }
 
 while ($row = $result->fetch_assoc()) {
     $isSent = ($row['sender_id'] == $current_user);
     $class = $isSent ? "sent" : "received";
 
-    echo "<div class='message $class'>";
+    echo "<article class='bubble $class'>";
     echo nl2br(htmlspecialchars($row['message']));
-    echo "<div class='time'>" . date("H:i", strtotime($row['created_at'])) . "</div>";
-    echo "</div>";
+    echo "<small>" . date("H:i", strtotime($row['created_at'])) . "</small>";
+    echo "</article>";
 }
 $stmt->close();
 ?>

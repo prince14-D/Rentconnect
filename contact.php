@@ -2,313 +2,270 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Contact Us - RentConnect</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <style>
-  body { 
-    font-family: 'Segoe UI', Tahoma, sans-serif; 
-    margin: 0; 
-    background: #f5f7fb; 
-    color: #333; 
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Get in touch with the RentConnect team.">
+<meta name="theme-color" content="#1f8f67">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="manifest" href="/manifest.json">
+<title>Contact Us - RentConnect</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root {
+  --ink: #1f2430;
+  --muted: #5d6579;
+  --brand: #1f8f67;
+  --brand-deep: #15543e;
+  --accent: #ff7a2f;
+  --line: rgba(31, 36, 48, 0.12);
+  --shadow: 0 18px 36px rgba(19, 36, 33, 0.14);
 }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Manrope', sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 10% 4%, rgba(255, 122, 47, 0.22), transparent 34%),
+    radial-gradient(circle at 92% 8%, rgba(31, 143, 103, 0.2), transparent 30%),
+    linear-gradient(165deg, #f9f6ef 0%, #f2f7f8 58%, #fffdfa 100%);
+}
+.container { width: min(1120px, 94vw); margin: 0 auto; }
 
-/* Header */
 header {
-    background: #fff; 
-    padding: 10px 20px; 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
-    position: sticky; top: 0; 
-    z-index: 1000;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.83);
+  border-bottom: 1px solid var(--line);
 }
-header h1 a { 
-    text-decoration: none; 
-    color: #2E7D32; 
-    font-size: 0.9em; 
-    font-weight: bold; 
+.topbar {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
+.brand {
+  text-decoration: none;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #12384b;
+}
+.menu-toggle {
+  display: none;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 9px;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+}
+nav { display: flex; align-items: center; gap: 8px; }
+nav a, .dropbtn {
+  text-decoration: none;
+  color: #374258;
+  font-weight: 700;
+  padding: 9px 12px;
+  border-radius: 9px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+nav a:hover, .dropbtn:hover { background: rgba(31, 143, 103, 0.08); color: var(--brand-deep); }
+.upload-btn { background: linear-gradient(140deg, var(--brand), var(--brand-deep)); color: #fff; }
 
-/* Nav Links */
-nav {
-    display: flex; 
-    gap: 15px; 
-    align-items: center;
-}
-nav a, nav .dropbtn {
-    text-decoration: none;
-    color: #444;
-    font-weight: 500;
-    padding: 6px 10px;
-    border-radius: 6px;
- 
-    cursor: pointer;
-    font-size: 1em;
-    transition: 0.3s;
-}
-nav a:hover, nav .dropbtn:hover {
-    color: #2E7D32;
-    background: #f0f0f0;
-}
-
-/* Dropdown */
-.dropdown {
-    position: relative;
-    display: inline-block;
-}
+.dropdown { position: relative; }
 .dropdown-content {
-    display: none;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    background: #fff;
-    min-width: 160px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    border-radius: 6px;
-    overflow: hidden; 
-    z-index: 999;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 160px;
+  display: none;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 6px;
 }
-.dropdown-content a {
-    display: block;
-    padding: 10px 14px;
-    text-decoration: none;
-    color: #444;
-    font-size: 0.95em;
-    transition: 0.2s;
+.dropdown-content a { display: block; padding: 10px 11px; border-radius: 8px; }
+.dropdown-content a:hover { background: rgba(31, 143, 103, 0.1); }
+.dropdown.active .dropdown-content { display: block; }
+
+.hero {
+  margin-top: 24px;
+  border-radius: 20px;
+  overflow: hidden;
+  min-height: 38vh;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: #fff;
+  background:
+    linear-gradient(130deg, rgba(11, 31, 49, 0.74), rgba(17, 88, 64, 0.64)),
+    url('images/home-banner-2.png') center/cover no-repeat;
+  box-shadow: var(--shadow);
+}
+.hero h1 {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  letter-spacing: -0.03em;
+  margin-bottom: 10px;
+}
+.hero p { font-size: clamp(0.95rem, 1.6vw, 1.15rem); max-width: 58ch; color: rgba(255,255,255,0.92); }
+
+.contact-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 14px;
+}
+.card {
+  background: rgba(255, 255, 255, 0.93);
+  border: 1px solid rgba(255,255,255,0.9);
+  border-radius: 16px;
+  box-shadow: 0 10px 24px rgba(15, 31, 40, 0.09);
+  padding: 18px;
+}
+.card h2 {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 1.2rem;
+  margin-bottom: 8px;
+  color: #103347;
+}
+.card p { color: var(--muted); line-height: 1.58; margin: 5px 0; }
+.card a { color: var(--brand-deep); text-decoration: none; font-weight: 700; }
+.social { margin: 10px 0 12px; display: flex; gap: 10px; }
+.social a {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(31, 143, 103, 0.12);
 }
 
-.dropdown-content a:hover {
-    background: #f5f5f5;
-    color: #2E7D32;
-
-}
-.dropdown.active .dropdown-content {
-    display: block;
-}
-
-/* Upload Button */
-.upload-btn {
-    background: #2E7D32;
-    color: #fff;
-    padding: 8px 18px;
-    border-radius: 20px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    transition: 0.3s;
-}
-.upload-btn:hover {
-    background: #1b5e20;
-    transform: translateY(-2px);
+.map {
+  width: 100%;
+  height: 250px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
 }
 
-/* Hamburger for Mobile */
-.hamburger {
+form { display: grid; gap: 10px; }
+input, textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 11px 12px;
+  font: inherit;
+}
+textarea { min-height: 140px; resize: vertical; }
+button {
+  border: none;
+  border-radius: 10px;
+  padding: 11px 13px;
+  color: #fff;
+  font-weight: 700;
+  background: linear-gradient(140deg, var(--brand), var(--brand-deep));
+  cursor: pointer;
+}
+
+footer {
+  margin-top: 32px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+  color: #5a6476;
+  padding: 22px 0 30px;
+}
+footer a { color: var(--brand-deep); text-decoration: none; font-weight: 700; }
+
+@media (max-width: 900px) {
+  .contact-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .menu-toggle { display: inline-grid; place-items: center; }
+  nav {
     display: none;
     flex-direction: column;
-    cursor: pointer;
-    gap: 4px;
+    align-items: stretch;
+    position: absolute;
+    top: 72px;
+    right: 3vw;
+    width: min(280px, 92vw);
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 10px;
+  }
+  nav.active { display: flex; }
+  .dropdown-content { position: static; border: none; box-shadow: none; padding: 4px 0 0; }
 }
-.hamburger div {
-    width: 25px;
-    height: 3px;
-    background: #2E7D32;
-    border-radius: 2px;
-}
-
-/* Mobile Nav */
-@media(max-width:768px){
-    nav {
-        display: none;
-        flex-direction: column;
-        position: absolute;
-        top: 65px;
-        right: 10px;
-        background: #fff;
-        padding: 10px;
-        width: 220px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        z-index: 999;
-    }
-    nav.show {
-        display: flex;
-    }
-    nav a, nav .dropbtn {
-      text-decoration: none;
-        color: #444;
-        font-weight: 500;
-        width: 100%;
-        border: none;
-        background: none;
-        cursor: pointer;
-        font-size: 1em;
-        transition: 0.3s;
-        text-align: left;
-        padding: 8px 14px;
-        margin-bottom: 0px;
-        border-radius: 6px;
-    }
-    .dropdown-content {
-        position: relative;
-        box-shadow: none;
-        background: #f9f9f9;
-        margin-top: 5px;
-    }
-    .hamburger {
-        display: flex;
-    }
-}
-
-
-
-/* Banner */
-.banner {
-    background: linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.5)), url('images/home-banner-2.png') center/cover no-repeat;
-    color: #fff; 
-    text-align: center; 
-    padding: 80px 20px;
-}
-.banner h2 { font-size: 2.6em; font-weight: 700; margin-bottom: 10px; }
-.banner p { font-size: 1.1em; opacity: 0.9; }
-
-/* Contact Section */
-.contact-section {
-    max-width: 900px; 
-    margin: 50px auto; 
-    padding: 0 20px;
-    display: flex; 
-    flex-direction: column; 
-    align-items: center; 
-    gap: 40px;
-}
-.contact-cards {
-    display: flex; 
-    flex-wrap: wrap; 
-    justify-content: center; 
-    gap: 30px; 
-    width: 100%;
-}
-.contact-info, .contact-form {
-    background:#fff; 
-    padding:30px; 
-    border-radius:12px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.08); 
-    flex: 1 1 350px;
-}
-.contact-info h3, .contact-form h3 { color:#2E7D32; margin-bottom:15px; }
-.contact-info p { margin: 8px 0; font-size:0.95em; }
-.contact-info a { color:#2E7D32; text-decoration:none; }
-.contact-info a:hover { text-decoration:underline; }
-.contact-info .social { margin-top:15px; }
-.contact-info .social a { margin-right:12px; font-size:22px; color:#2E7D32; transition:0.3s; }
-.contact-info .social a:hover { color:#1b5e20; }
-
-.contact-form input, .contact-form textarea {
-    width:100%; padding:14px; margin:10px 0;
-    border:1px solid #ddd; border-radius:8px; font-size:1em;
-    transition:0.3s;
-}
-.contact-form input:focus, .contact-form textarea:focus { border-color: #2E7D32; outline:none; }
-.contact-form textarea { resize:none; height:140px; }
-.contact-form button {
-    background:#2E7D32; color:#fff; border:none;
-    padding:14px 25px; border-radius:8px;
-    font-size:1em; cursor:pointer; transition:0.3s;
-}
-.contact-form button:hover { background:#1b5e20; }
-
-/* Footer */
-footer {
-    background:#222; color:#ccc; text-align:center;
-    padding:20px; margin-top:40px;
-}
-footer a { color:#FF9800; text-decoration:none; }
-footer a:hover { text-decoration:underline; }
-
-/* Google Maps */
-.map-container {
-    width: 100%; height: 300px; border-radius:12px; overflow:hidden;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-}
-
-/* Responsive contact cards */
-@media(max-width:768px){
-    .contact-cards { flex-direction: column; }
-}
-
-  </style>
+</style>
 </head>
 <body>
-
 <header>
-  <h1><a href="index.php">RentConnect</a></h1>
-
-  <!-- Hamburger -->
-  <div class="hamburger" onclick="toggleMenu()">
-    <div></div><div></div><div></div>
-  </div>
-
-  <nav id="navMenu">
-    <a href="about.php" onclick="closeMenu()">About Us</a>
-    <a href="services.php" onclick="closeMenu()">Services</a>
-    <a href="contact.php" onclick="closeMenu()">Contact</a>
-
-    <!-- Dropdown -->
-    <div class="dropdown">
-      <button class="dropbtn" onclick="toggleDropdown(event)">Account ▾</button>
-      <div class="dropdown-content">
-        <a href="login.php" onclick="closeMenu()">Login</a>
-        <a href="signup.php" onclick="closeMenu()">Sign Up</a>
+  <div class="container topbar">
+    <a href="index.php" class="brand">RentConnect</a>
+    <button class="menu-toggle" onclick="toggleMenu()" aria-label="Toggle menu">☰</button>
+    <nav id="navMenu">
+      <a href="about.php">About</a>
+      <a href="services.php">Services</a>
+      <a href="contact.php">Contact</a>
+      <div class="dropdown">
+        <button class="dropbtn" onclick="toggleDropdown(event)">Account</button>
+        <div class="dropdown-content">
+          <a href="login.php">Login</a>
+          <a href="signup.php">Sign Up</a>
+        </div>
       </div>
-    </div>
-
-    <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'landlord'): ?>
-        <a href="upload_property.php" class="upload-btn" onclick="closeMenu()">Upload Property</a>
-    <?php else: ?>
-        <a href="login.php" class="upload-btn" onclick="closeMenu()">Upload Property</a>
-    <?php endif; ?>
-  </nav>
+      <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'landlord'): ?>
+        <a href="upload_property.php" class="upload-btn">Upload Property</a>
+      <?php else: ?>
+        <a href="login.php" class="upload-btn">Upload Property</a>
+      <?php endif; ?>
+    </nav>
+  </div>
 </header>
 
-<!-- Banner -->
-<section class="banner">
-  <h2>Contact Us</h2>
-  <p>We’d love to hear from you! Get in touch with RentConnect.</p>
-</section>
+<main class="container">
+  <section class="hero">
+    <div>
+      <h1>Contact Us</h1>
+      <p>Questions, feedback, or support needs? Reach out and our team will respond quickly.</p>
+    </div>
+  </section>
 
-<!-- Contact Section -->
-<section class="contact-section">
-
-  <div class="contact-cards">
-    <!-- Info -->
-    <div class="contact-info">
-      <h3>Our Office</h3>
+  <section class="contact-grid">
+    <article class="card">
+      <h2>Our Office</h2>
       <p>Monrovia, Liberia</p>
       <p><strong>Email:</strong> <a href="mailto:support@rentconnect.com">support@rentconnect.com</a></p>
       <p><strong>Phone:</strong> +231-888-272-360</p>
 
       <div class="social">
-        <a href="#"><i class="fab fa-facebook"></i></a>
-        <a href="#"><i class="fab fa-twitter"></i></a>
-        <a href="#"><i class="fab fa-instagram"></i></a>
+        <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+        <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+        <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
       </div>
 
-      <div class="map-container" style="margin-top:20px;">
-        <iframe 
-          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3972.1587728906827!2d-10.799231785234894!3d6.290743726450797!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xf0e9e5c7ab94a2f%3A0x3a8f39fcbdf4c4df!2sMonrovia%2C%20Liberia!5e0!3m2!1sen!2s!4v1691500000000!5m2!1sen!2s" 
-          width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy" 
-          referrerpolicy="no-referrer-when-downgrade">
-        </iframe>
+      <div class="map">
+        <iframe
+          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3972.1587728906827!2d-10.799231785234894!3d6.290743726450797!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xf0e9e5c7ab94a2f%3A0x3a8f39fcbdf4c4df!2sMonrovia%2C%20Liberia!5e0!3m2!1sen!2s!4v1691500000000!5m2!1sen!2s"
+          width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"></iframe>
       </div>
-    </div>
+    </article>
 
-    <!-- Form -->
-    <div class="contact-form">
-      <h3>Send a Message</h3>
+    <article class="card">
+      <h2>Send a Message</h2>
       <form action="send_message.php" method="POST">
         <input type="text" name="name" placeholder="Your Name" required>
         <input type="email" name="email" placeholder="Your Email" required>
@@ -316,35 +273,39 @@ footer a:hover { text-decoration:underline; }
         <textarea name="message" placeholder="Your Message" required></textarea>
         <button type="submit">Send Message</button>
       </form>
-    </div>
-  </div>
-
-</section>
+    </article>
+  </section>
+</main>
 
 <footer>
-  <p>&copy; <?php echo date("Y"); ?> RentConnect Liberia | All rights reserved. | <a href="services.php">Our Services</a></p>
+  <div class="container">
+    <p>&copy; <?php echo date("Y"); ?> RentConnect Liberia | All rights reserved. | <a href="services.php">Our Services</a></p>
+  </div>
 </footer>
 
 <script>
-function toggleDropdown(event) {
-    event.preventDefault();
-    const dropdown = event.target.closest(".dropdown");
-    dropdown.classList.toggle("active");
-}
-
 function toggleMenu() {
-    document.getElementById("navMenu").classList.toggle("show");
+  document.getElementById("navMenu").classList.toggle("active");
 }
-
-function closeMenu() {
-    document.getElementById("navMenu").classList.remove("show");
-    const dropdowns = document.querySelectorAll(".dropdown");
-    dropdowns.forEach(d => d.classList.remove("active"));
+function toggleDropdown(event) {
+  event.preventDefault();
+  event.target.closest(".dropdown").classList.toggle("active");
 }
-
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".dropdown")) {
+    document.querySelectorAll(".dropdown").forEach((drop) => drop.classList.remove("active"));
+  }
+});
 </script>
 
-
-
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then((registration) => console.log('[PWA] Service Worker registered'))
+      .catch((error) => console.warn('[PWA] Service Worker registration failed:', error));
+  });
+}
+</script>
 </body>
 </html>

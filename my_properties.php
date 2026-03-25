@@ -2,7 +2,6 @@
 session_start();
 include "db.php";
 
-// Ensure landlord access
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'landlord') {
     header("Location: login.php");
     exit;
@@ -12,33 +11,29 @@ $landlord_id = $_SESSION['user_id'];
 $status_filter = $_GET['status'] ?? 'all';
 $search = trim($_GET['search'] ?? '');
 
-// Handle delete action
 $message = '';
 if (isset($_GET['delete_id'])) {
     $delete_id = intval($_GET['delete_id']);
     $stmt = $conn->prepare("DELETE FROM properties WHERE id=? AND landlord_id=?");
     $stmt->bind_param("ii", $delete_id, $landlord_id);
     if ($stmt->execute()) {
-        $message = "✅ Property deleted successfully.";
+        $message = "Property deleted successfully.";
     } else {
-        $message = "❌ Failed to delete property.";
+        $message = "Failed to delete property.";
     }
 }
 
-// Base query: landlord's properties OR pending properties assigned to them
-$sql = "SELECT * FROM properties 
+$sql = "SELECT * FROM properties
         WHERE (landlord_id=? OR (status='pending' AND landlord_id=?))";
 $params = [$landlord_id, $landlord_id];
 $types = "ii";
 
-// Apply status filter
 if ($status_filter !== 'all') {
     $sql .= " AND status=?";
     $params[] = $status_filter;
     $types .= "s";
 }
 
-// Apply search filter
 if ($search !== '') {
     $sql .= " AND (title LIKE ? OR location LIKE ?)";
     $searchTerm = "%$search%";
@@ -47,7 +42,6 @@ if ($search !== '') {
     $types .= "ss";
 }
 
-// Order by status priority and creation date
 $sql .= " ORDER BY FIELD(status,'pending','approved','taken','inactive'), created_at DESC";
 
 $stmt = $conn->prepare($sql);
@@ -55,122 +49,201 @@ $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $result = $stmt->get_result();
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="apple-touch-icon" href="/favicon.svg" />
+<link rel="icon" href="/favicon.svg" />
 <title>My Properties - RentConnect</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
-body { margin:0; font-family:Arial,sans-serif; background:#f7f9f7; }
-header { background:#2e7d32; color:white; text-align:center; padding:20px; font-size:1.5em; }
-.container { max-width:1100px; margin:20px auto; padding:15px; background:white; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
-h2 { text-align:center; color:#2e7d32; margin-bottom:20px; }
+:root {
+  --ink: #1f2430;
+  --muted: #5d6579;
+  --brand: #1f8f67;
+  --brand-deep: #15543e;
+  --accent: #ff7a2f;
+  --line: rgba(31, 36, 48, 0.12);
+  --shadow: 0 18px 36px rgba(19, 36, 33, 0.14);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Manrope', sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 10% 4%, rgba(255, 122, 47, 0.22), transparent 34%),
+    radial-gradient(circle at 92% 8%, rgba(31, 143, 103, 0.2), transparent 30%),
+    linear-gradient(165deg, #f9f6ef 0%, #f2f7f8 58%, #fffdfa 100%);
+}
+.container { width: min(1140px, 94vw); margin: 0 auto; }
+.header-card {
+  margin-top: 22px;
+  border-radius: 18px;
+  color: #fff;
+  padding: 18px;
+  background: linear-gradient(140deg, rgba(16, 62, 79, 0.93), rgba(31, 143, 103, 0.86));
+  box-shadow: var(--shadow);
+}
+.header-card h1 {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: clamp(1.4rem, 2.8vw, 2rem);
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+.header-card p { color: rgba(255,255,255,0.92); }
 
-.filter-bar { display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; margin-bottom:20px; }
-.filter-bar form { display:flex; flex-wrap:wrap; gap:10px; width:100%; }
-.filter-bar select, .filter-bar input[type=text] { padding:8px 12px; border-radius:6px; border:1px solid #ccc; flex:1; min-width:120px; }
-.filter-bar button { padding:8px 14px; border:none; border-radius:6px; background:#2e7d32; color:#fff; cursor:pointer; }
-.filter-bar button:hover { background:#1b5e20; }
+.panel {
+  margin-top: 14px;
+  background: rgba(255,255,255,0.93);
+  border: 1px solid rgba(255,255,255,0.9);
+  border-radius: 14px;
+  box-shadow: 0 10px 24px rgba(15, 31, 40, 0.09);
+  padding: 14px;
+}
 
-table { width:100%; border-collapse:collapse; }
-th, td { padding:10px; border-bottom:1px solid #ddd; text-align:left; font-size:0.95em; }
-th { background:#f0f0f0; }
-.status-badge { padding:4px 10px; border-radius:6px; color:white; font-weight:bold; font-size:0.85em; }
-.pending { background:#ffa000; }
-.approved { background:#2e7d32; }
-.taken { background:#1976d2; }
-.inactive { background:#9e9e9e; }
+.message {
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  color: #145734;
+  background: rgba(39, 165, 106, 0.12);
+  border: 1px solid rgba(39, 165, 106, 0.3);
+  font-weight: 700;
+}
 
-a.btn { padding:6px 12px; border-radius:6px; text-decoration:none; font-size:0.85em; margin:2px 2px 2px 0; color:white; display:inline-block; }
-.edit { background:#1976d2; }
-.edit:hover { background:#0d47a1; }
-.delete { background:#f44336; }
-.delete:hover { background:#b71c1c; }
+.filter-form {
+  display: grid;
+  grid-template-columns: 180px 1fr auto;
+  gap: 8px;
+}
+select, input, button {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+}
+button {
+  border: none;
+  color: #fff;
+  background: linear-gradient(140deg, var(--brand), var(--brand-deep));
+  font-weight: 700;
+  cursor: pointer;
+}
 
-.message { text-align:center; color:green; font-weight:bold; margin-bottom:15px; }
-a.back { display:block; text-align:center; margin-top:15px; color:#2e7d32; text-decoration:none; font-weight:bold; }
+.table-wrap { overflow-x: auto; margin-top: 10px; }
+table { width: 100%; border-collapse: collapse; min-width: 860px; }
+th, td { border-bottom: 1px solid var(--line); padding: 10px; text-align: left; font-size: 0.9rem; }
+th { background: #f6f9fc; color: #415067; }
 
-/* Responsive */
-@media(max-width:768px){
-    table, thead, tbody, th, td, tr { display:block; }
-    tr { margin-bottom:15px; border-bottom:1px solid #ccc; }
-    th { display:none; }
-    td { display:flex; justify-content:space-between; padding:8px; border:none; border-bottom:1px solid #eee; }
-    td::before { content: attr(data-label); font-weight:bold; color:#555; flex:1; }
-    td span.status-badge { display:inline-block; }
-    .filter-bar form { flex-direction:column; align-items:flex-start; }
+.status-badge {
+  display: inline-block;
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+.pending { background: #ff9f2f; }
+.approved { background: #1f8f67; }
+.taken { background: #2374cc; }
+.inactive { background: #8d97ac; }
+
+.actions a {
+  text-decoration: none;
+  border-radius: 8px;
+  padding: 7px 9px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #fff;
+  display: inline-block;
+  margin-right: 4px;
+}
+.actions .edit { background: linear-gradient(140deg, #2374cc, #1b5ca3); }
+.actions .delete { background: linear-gradient(140deg, #e5554f, #d43c35); }
+
+.back {
+  display: inline-block;
+  margin-top: 12px;
+  text-decoration: none;
+  font-weight: 700;
+  color: #15543e;
+}
+
+@media (max-width: 760px) {
+  .filter-form { grid-template-columns: 1fr; }
+  button { width: 100%; }
 }
 </style>
 <script>
-function confirmDelete(id){
-    if(confirm("Are you sure you want to delete this property?")){
-        window.location.href = "?delete_id=" + id;
-    }
+function confirmDelete(id) {
+  if (confirm("Are you sure you want to delete this property?")) {
+    window.location.href = "?delete_id=" + id;
+  }
 }
 </script>
 </head>
 <body>
+<main class="container">
+  <section class="header-card">
+    <h1>My Properties</h1>
+    <p>Filter listings, review statuses, and manage your portfolio quickly.</p>
+  </section>
 
-<header>My Properties</header>
-<div class="container">
-    <?php if($message) echo "<p class='message'>$message</p>"; ?>
-
-    <div class="filter-bar">
-        <form method="GET">
-            <select name="status">
-                <option value="all" <?= $status_filter=='all'?'selected':'' ?>>All</option>
-                <option value="pending" <?= $status_filter=='pending'?'selected':'' ?>>Pending</option>
-                <option value="approved" <?= $status_filter=='approved'?'selected':'' ?>>Approved</option>
-                <option value="taken" <?= $status_filter=='taken'?'selected':'' ?>>Taken</option>
-                <option value="inactive" <?= $status_filter=='inactive'?'selected':'' ?>>Inactive</option>
-            </select>
-            <input type="text" name="search" placeholder="Search title or location..." value="<?= htmlspecialchars($search) ?>">
-            <button type="submit">Apply</button>
-        </form>
-    </div>
-
-    <?php if($result && $result->num_rows>0): ?>
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Title</th>
-                <th>Location</th>
-                <th>Price</th>
-                <th>Bedrooms</th>
-                <th>Bathrooms</th>
-                <th>Submitted On</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php while($row = $result->fetch_assoc()): ?>
-            <tr>
-                <td data-label="ID"><?= $row['id'] ?></td>
-                <td data-label="Title"><?= htmlspecialchars($row['title']) ?></td>
-                <td data-label="Location"><?= htmlspecialchars($row['location']) ?></td>
-                <td data-label="Price">$<?= number_format($row['price'],2) ?></td>
-                <td data-label="Bedrooms"><?= $row['bedrooms'] ?></td>
-                <td data-label="Bathrooms"><?= $row['bathrooms'] ?></td>
-                <td data-label="Submitted On"><?= $row['created_at'] ?></td>
-                <td data-label="Status"><span class="status-badge <?= $row['status'] ?>"><?= ucfirst($row['status']) ?></span></td>
-                <td data-label="Actions">
-                    <a href="edit_property.php?id=<?= $row['id'] ?>" class="btn edit">Edit</a>
-                    <a href="javascript:void(0)" onclick="confirmDelete(<?= $row['id'] ?>)" class="btn delete">Delete</a>
-                </td>
-            </tr>
-            <?php endwhile; ?>
-        </tbody>
-    </table>
-    <?php else: ?>
-        <p style="text-align:center; color:#555;">No properties found.</p>
+  <section class="panel">
+    <?php if ($message): ?>
+      <p class="message"><?php echo htmlspecialchars($message); ?></p>
     <?php endif; ?>
 
-    <a href="landlord_dashboard.php" class="back">⬅ Back to Dashboard</a>
-</div>
+    <form class="filter-form" method="GET">
+      <select name="status">
+        <option value="all" <?php echo $status_filter == 'all' ? 'selected' : ''; ?>>All</option>
+        <option value="pending" <?php echo $status_filter == 'pending' ? 'selected' : ''; ?>>Pending</option>
+        <option value="approved" <?php echo $status_filter == 'approved' ? 'selected' : ''; ?>>Approved</option>
+        <option value="taken" <?php echo $status_filter == 'taken' ? 'selected' : ''; ?>>Taken</option>
+        <option value="inactive" <?php echo $status_filter == 'inactive' ? 'selected' : ''; ?>>Inactive</option>
+      </select>
+      <input type="text" name="search" placeholder="Search title or location" value="<?php echo htmlspecialchars($search); ?>">
+      <button type="submit">Apply</button>
+    </form>
 
+    <?php if ($result && $result->num_rows > 0): ?>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th><th>Title</th><th>Location</th><th>Price</th><th>Bedrooms</th><th>Bathrooms</th><th>Submitted</th><th>Status</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php while ($row = $result->fetch_assoc()): ?>
+              <tr>
+                <td><?php echo (int) $row['id']; ?></td>
+                <td><?php echo htmlspecialchars($row['title']); ?></td>
+                <td><?php echo htmlspecialchars($row['location']); ?></td>
+                <td>$<?php echo number_format($row['price'], 2); ?></td>
+                <td><?php echo (int) $row['bedrooms']; ?></td>
+                <td><?php echo (int) $row['bathrooms']; ?></td>
+                <td><?php echo htmlspecialchars($row['created_at']); ?></td>
+                <td><span class="status-badge <?php echo htmlspecialchars($row['status']); ?>"><?php echo ucfirst($row['status']); ?></span></td>
+                <td class="actions">
+                  <a href="edit_property.php?id=<?php echo (int) $row['id']; ?>" class="edit">Edit</a>
+                  <a href="javascript:void(0)" class="delete" onclick="confirmDelete(<?php echo (int) $row['id']; ?>)">Delete</a>
+                </td>
+              </tr>
+            <?php endwhile; ?>
+          </tbody>
+        </table>
+      </div>
+    <?php else: ?>
+      <p>No properties found.</p>
+    <?php endif; ?>
+
+    <a href="landlord_dashboard.php" class="back">Back to Dashboard</a>
+  </section>
+</main>
 </body>
 </html>

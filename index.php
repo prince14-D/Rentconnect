@@ -12,9 +12,9 @@ $user_id = $_SESSION['user_id'] ?? null;
 $user_role = $_SESSION['role'] ?? null;
 
 // --- Base SQL ---
-$sql = "SELECT p.*, l.name AS landlord_name 
-        FROM properties p 
-        JOIN users l ON p.landlord_id = l.id 
+$sql = "SELECT p.*, l.name AS landlord_name
+        FROM properties p
+        JOIN users l ON p.landlord_id = l.id
         WHERE 1=1 ";
 $params = [];
 $types = "";
@@ -51,7 +51,9 @@ $sql .= " ORDER BY p.created_at DESC LIMIT 12";
 
 // --- Prepare and execute ---
 $stmt = $conn->prepare($sql);
-if ($types) $stmt->bind_param($types, ...$params);
+if ($types) {
+    $stmt->bind_param($types, ...$params);
+}
 $stmt->execute();
 $properties = $stmt->get_result();
 ?>
@@ -60,389 +62,719 @@ $properties = $stmt->get_result();
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>RentConnect - Find Homes in Liberia</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Find and manage rental properties with ease. Connect landlords and renters seamlessly.">
+    <meta name="theme-color" content="#1f8f67">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="manifest" href="/manifest.json">
+    <title>RentConnect - Find Homes in Liberia</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
     <style>
-        /* === Global Styles === */
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f7fb; color: #333; }
+        :root {
+            --bg: #f7f4ee;
+            --surface: #fffaf2;
+            --surface-2: #ffffff;
+            --ink: #22252e;
+            --muted: #5f6678;
+            --brand: #1f8f67;
+            --brand-deep: #146248;
+            --accent: #ff7a2f;
+            --line: rgba(34, 37, 46, 0.12);
+            --shadow: 0 14px 42px rgba(19, 37, 30, 0.12);
+            --radius-lg: 22px;
+            --radius-md: 14px;
+            --radius-sm: 10px;
+        }
 
-        /* === Header === */
-        header { background: #ffffff; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 1000; }
-        header h1 { font-size: 1.6em; color: #2E7D32; font-weight: bold; }
-        nav { display: flex; gap: 20px; }
-        nav a { text-decoration: none; color: #444; font-weight: 500; transition: 0.3s; }
-        nav a:hover { color: #ffffffff; }
-        .upload-btn { background: #2E7D32; color: #fff; padding: 8px 14px; border-radius: 6px; }
-        .upload-btn:hover { background: #1b5e20; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-        /* === Hamburger Button === */
-        .menu-toggle { display: none; background: none; border: none; font-size: 1.8em; cursor: pointer; }
-        @media (max-width: 768px) {
-            nav { 
-                display: none; flex-direction: column; position: absolute; 
-                top: 60px; right: 20px; background: #fff; padding: 15px; 
-                border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+        body {
+            font-family: 'Manrope', sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at 8% 5%, rgba(255, 122, 47, 0.22), transparent 38%),
+                radial-gradient(circle at 92% 10%, rgba(31, 143, 103, 0.22), transparent 34%),
+                linear-gradient(165deg, #f9f5ef 0%, #f1f6f8 52%, #fffdf8 100%);
+            min-height: 100vh;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .container {
+            width: min(1180px, 94vw);
+            margin: 0 auto;
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            background: rgba(255, 250, 242, 0.9);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 74px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 1.35rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .brand-mark {
+            display: inline-grid;
+            place-items: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            color: #fff;
+            background: linear-gradient(140deg, var(--brand), var(--brand-deep));
+            font-size: 0.95rem;
+        }
+
+        .menu-toggle {
+            display: none;
+            border: 1px solid var(--line);
+            background: #fff;
+            border-radius: 8px;
+            width: 40px;
+            height: 40px;
+            font-size: 1.15rem;
+            cursor: pointer;
+        }
+
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        nav a,
+        .dropbtn {
+            padding: 10px 14px;
+            border-radius: 9px;
+            font-weight: 600;
+            color: #333a49;
+            border: 1px solid transparent;
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.22s ease;
+        }
+
+        nav a:hover,
+        .dropbtn:hover {
+            background: rgba(31, 143, 103, 0.08);
+            color: var(--brand-deep);
+        }
+
+        .upload-btn {
+            color: #fff;
+            background: linear-gradient(140deg, var(--brand), var(--brand-deep));
+            box-shadow: 0 8px 20px rgba(20, 98, 72, 0.22);
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 24px rgba(20, 98, 72, 0.28);
+        }
+
+        .dropdown {
+            position: relative;
+        }
+
+        .dropdown-content {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 8px);
+            min-width: 165px;
+            display: none;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            padding: 6px;
+        }
+
+        .dropdown-content a {
+            display: block;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 0.95rem;
+        }
+
+        .dropdown-content a:hover {
+            background: rgba(31, 143, 103, 0.1);
+        }
+
+        .dropdown.active .dropdown-content {
+            display: block;
+        }
+
+        .hero-wrap {
+            padding: 28px 0 8px;
+        }
+
+        .hero-carousel {
+            position: relative;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            min-height: 60vh;
+            box-shadow: var(--shadow);
+        }
+
+        .hero-carousel .slide {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transform: scale(1.02);
+            transition: opacity 0.85s ease, transform 1.2s ease;
+        }
+
+        .hero-carousel .slide.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .hero-carousel img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .hero-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(130deg, rgba(19, 30, 33, 0.74) 15%, rgba(19, 30, 33, 0.32) 75%);
+        }
+
+        .caption {
+            position: absolute;
+            left: clamp(18px, 4vw, 52px);
+            bottom: clamp(18px, 5vw, 56px);
+            max-width: 640px;
+            color: #fff;
+            animation: rise 700ms ease forwards;
+        }
+
+        .caption h2 {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: clamp(1.8rem, 4.8vw, 3.2rem);
+            line-height: 1.1;
+            margin-bottom: 10px;
+            letter-spacing: -0.03em;
+        }
+
+        .caption p {
+            color: rgba(255, 255, 255, 0.92);
+            font-size: clamp(0.98rem, 1.7vw, 1.2rem);
+        }
+
+        .hero-dots {
+            position: absolute;
+            right: 22px;
+            bottom: 20px;
+            display: flex;
+            gap: 6px;
+            z-index: 2;
+        }
+
+        .hero-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            background: transparent;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .hero-dot.active {
+            width: 28px;
+            background: #fff;
+        }
+
+        .search-panel {
+            margin: -48px auto 0;
+            position: relative;
+            z-index: 3;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow);
+            padding: 16px;
+            width: min(980px, 96vw);
+            backdrop-filter: blur(8px);
+        }
+
+        .search-panel form {
+            display: grid;
+            grid-template-columns: 1.35fr 1fr 1fr auto;
+            gap: 10px;
+        }
+
+        .search-panel input,
+        .search-panel button {
+            border-radius: var(--radius-sm);
+            padding: 12px 14px;
+            border: 1px solid var(--line);
+            font-size: 0.96rem;
+            font-family: inherit;
+        }
+
+        .search-panel input {
+            background: #fff;
+        }
+
+        .search-panel input:focus {
+            outline: none;
+            border-color: rgba(31, 143, 103, 0.55);
+            box-shadow: 0 0 0 3px rgba(31, 143, 103, 0.16);
+        }
+
+        .search-panel button {
+            border: none;
+            font-weight: 700;
+            color: #fff;
+            background: linear-gradient(140deg, var(--accent), #f95d11);
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 12px 22px rgba(249, 93, 17, 0.3);
+        }
+
+        .search-panel button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 24px rgba(249, 93, 17, 0.34);
+        }
+
+        .section {
+            padding: 70px 0 0;
+        }
+
+        .section-head {
+            display: flex;
+            align-items: end;
+            justify-content: space-between;
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+
+        .section-head h3 {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: clamp(1.5rem, 2.3vw, 2.1rem);
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+        }
+
+        .section-head p {
+            color: var(--muted);
+            max-width: 530px;
+        }
+
+        .properties {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+            gap: 20px;
+        }
+
+        .property {
+            background: var(--surface-2);
+            border: 1px solid rgba(28, 40, 67, 0.09);
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 10px 28px rgba(21, 28, 42, 0.08);
+            animation: rise 650ms ease both;
+        }
+
+        .property:nth-child(2) { animation-delay: 80ms; }
+        .property:nth-child(3) { animation-delay: 120ms; }
+        .property:nth-child(4) { animation-delay: 160ms; }
+
+        .carousel {
+            position: relative;
+            height: 214px;
+            background: #e6ecef;
+            overflow: hidden;
+        }
+
+        .carousel img {
+            width: 100%;
+            height: 214px;
+            object-fit: cover;
+            display: none;
+        }
+
+        .carousel img.active {
+            display: block;
+        }
+
+        .carousel button {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 999px;
+            color: #fff;
+            background: rgba(17, 23, 34, 0.55);
+            cursor: pointer;
+        }
+
+        .carousel .prev {
+            left: 10px;
+        }
+
+        .carousel .next {
+            right: 10px;
+        }
+
+        .content {
+            padding: 16px;
+        }
+
+        .content h4 {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 1.15rem;
+            margin-bottom: 8px;
+            letter-spacing: -0.01em;
+        }
+
+        .meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            color: var(--muted);
+            font-size: 0.94rem;
+            margin-bottom: 8px;
+        }
+
+        .meta span {
+            padding: 6px 10px;
+            background: var(--surface);
+            border: 1px solid rgba(28, 40, 67, 0.09);
+            border-radius: 999px;
+        }
+
+        .price {
+            font-size: 1.12rem;
+            font-weight: 800;
+            color: #1b4154;
+            margin-bottom: 6px;
+        }
+
+        .landlord {
+            color: var(--muted);
+            font-size: 0.92rem;
+            margin-bottom: 14px;
+        }
+
+        .view-link {
+            display: inline-block;
+            padding: 10px 14px;
+            border-radius: 10px;
+            background: #102f45;
+            color: #fff;
+            font-weight: 700;
+            font-size: 0.92rem;
+        }
+
+        .view-link:hover {
+            background: #0e2435;
+        }
+
+        .empty-state {
+            border: 1px dashed var(--line);
+            border-radius: var(--radius-md);
+            padding: 36px;
+            text-align: center;
+            color: var(--muted);
+            background: rgba(255, 255, 255, 0.68);
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-top: 22px;
+        }
+
+        .feature {
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 10px 24px rgba(31, 40, 52, 0.06);
+        }
+
+        .feature h4 {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: #102f45;
+            margin-bottom: 8px;
+        }
+
+        .feature p {
+            color: var(--muted);
+            line-height: 1.5;
+            font-size: 0.95rem;
+        }
+
+        footer {
+            margin-top: 60px;
+            padding: 24px 0 32px;
+            border-top: 1px solid var(--line);
+            color: #556072;
+            font-size: 0.92rem;
+            text-align: center;
+        }
+
+        footer a {
+            color: var(--brand-deep);
+            font-weight: 700;
+        }
+
+        @keyframes rise {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
             }
-            nav.active { display: flex; }
-            .menu-toggle { display: block; }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-        /* === Hero Carousel === */
-        .hero-carousel { position: relative; width: 100%; height: 70vh; overflow: hidden; }
-        .hero-carousel .slide { position: absolute; width: 100%; height: 100%; opacity: 0; transition: opacity 1s ease-in-out; }
-        .hero-carousel .slide.active { opacity: 1; }
-        .hero-carousel img { width: 100%; height: 100%; object-fit: cover; }
-        .hero-carousel .caption { position: absolute; bottom: 20%; left: 50%; transform: translateX(-50%); text-align: center; color: #fff; background: rgba(0,0,0,0.5); padding: 20px; border-radius: 10px; }
-        .hero-carousel .caption h2 { font-size: 2.5em; margin-bottom: 10px; }
-        .hero-carousel .caption p { font-size: 1.2em; }
-        @media(max-width: 768px) {
-          .hero-carousel { height: 40vh; }
-          .hero-carousel .caption h2 { font-size: 1.6em; }
-          .hero-carousel .caption p { font-size: 1em; }
+        @media (max-width: 900px) {
+            .search-panel form {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .search-panel button {
+                grid-column: span 2;
+            }
         }
 
-       .search-box {
-  background: #fff;
-  padding: 15px;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  max-width: 700px;
-  margin: 20px auto;
-}
+        @media (max-width: 768px) {
+            .menu-toggle {
+                display: inline-grid;
+                place-items: center;
+            }
 
-.search-box form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
+            nav {
+                position: absolute;
+                right: 3vw;
+                top: 72px;
+                width: min(280px, 92vw);
+                display: none;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 6px;
+                background: #fff;
+                border: 1px solid var(--line);
+                border-radius: 14px;
+                padding: 12px;
+                box-shadow: var(--shadow);
+            }
 
-.search-box .form-group {
-  flex: 1 1 150px;
-}
+            nav.active {
+                display: flex;
+            }
 
-.search-box input {
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 15px;
-  transition: 0.2s ease;
-}
+            .dropdown-content {
+                position: static;
+                border: none;
+                box-shadow: none;
+                padding: 4px 0 0;
+            }
 
-.search-box input:focus {
-  border-color: #4a90e2;
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(74,144,226,0.2);
-}
+            .hero-carousel {
+                min-height: 46vh;
+            }
 
-.search-box button {
-  padding: 12px 20px;
-  background: #4a90e2;
-  color: #fff;
-  font-size: 15px;
-  font-weight: 600;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
+            .search-panel {
+                margin-top: -38px;
+            }
 
-.search-box button:hover {
-  background: #357abd;
-}
+            .search-panel form {
+                grid-template-columns: 1fr;
+            }
 
-/* Mobile friendly */
-@media (max-width: 300px) {
-  .search-box form {
-    flex-direction: column;
-  }
-  
-  .search-box button {
-    width: 100%;
-  }
-}
+            .search-panel button {
+                grid-column: auto;
+            }
 
-        /* === Properties Section === */
-        .section { padding: 50px 20px; text-align: center; }
-        .section h3 { font-size: 2em; margin-bottom: 30px; color: #2E7D32; font-weight: 700; }
-        .properties { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; }
-        .property { background: #fff; border-radius: 14px; box-shadow: 0 4px 14px rgba(0,0,0,0.08); transition: transform 0.3s; overflow: hidden; }
-        .property:hover { transform: translateY(-6px); }
-        .carousel { position: relative; width: 100%; height: 200px; overflow: hidden; }
-        .carousel img { width: 100%; height: 200px; object-fit: cover; display: none; }
-        .carousel img.active { display: block; }
-        .carousel button { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); border: none; color: #fff; padding: 6px 10px; cursor: pointer; border-radius: 50%; }
-        .carousel .prev { left: 12px; }
-        .carousel .next { right: 12px; }
-        .content { padding: 18px; text-align: left; }
-        .content h4 { margin-bottom: 6px; font-size: 1.2em; color: #222; }
-        .content p { margin: 4px 0; color: #555; font-size: 0.95em; }
-        .content a { display: inline-block; margin-top: 12px; padding: 10px 14px; background: #2196F3; color: #fff; border-radius: 8px; text-decoration: none; font-weight: bold; }
-        .content a:hover { background: #1565C0; }
-
-        /* === Features Section === */
-        .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 30px; }
-        .feature { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        .feature h4 { color: #2E7D32; margin-bottom: 10px; }
-
-        /* === Footer === */
-        footer { background: #222; color: #ccc; padding: 25px; margin-top: 60px; text-align: center; }
-        footer a { color: #FF9800; text-decoration: none; }
-
-        .search-box {
-    margin: 20px auto 40px;
-}
-
-/* Nav links & buttons */
-nav a, 
-nav .dropbtn {
-  text-decoration: none;
-  color: #444;
-  font-weight: 500;
-  padding: 8px 14px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 1em;
-  transition: 0.3s;
-}
-
-nav a:hover, 
-nav .dropbtn:hover {
-  color: #2E7D32;
-}
-
-/* Dropdown wrapper */
-.dropdown {
-  position: relative;
-  display: inline-block;
-}
-
-/* Dropdown content */
-.dropdown-content {
-  display: none;
-  position: absolute;
-  top: 100%;
-  left: 0;
-  background: #fff;
-  min-width: 160px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-  border-radius: 6px;
-  z-index: 999;
-}
-
-.dropdown-content a {
-  display: block;
-  padding: 10px;
-  text-decoration: none;
-  color: #444;
-  font-size: 0.95em;
-}
-
-.dropdown-content a:hover {
-  background: #f5f5f5;
-  color: #2E7D32;
-}
-
-/* Desktop hover */
-@media (min-width: 769px) {
-  .dropdown:hover .dropdown-content {
-    display: block;
-  }
-}
-
-/* Mobile click */
-.dropdown.active .dropdown-content {
-  display: block;
-}
-
-
+            .section {
+                padding-top: 58px;
+            }
+        }
     </style>
-
 </head>
 <body>
-
 <header>
-    <h1>
-        <a href="index.php" style="text-decoration: none; color: #2E7D32;">
-            RentConnect
+    <div class="container topbar">
+        <a href="index.php" class="brand">
+            <span class="brand-mark">RC</span>
+            <span>RentConnect</span>
         </a>
-    </h1>
-    <button class="menu-toggle" onclick="toggleMenu()">☰</button>
-    <nav id="navMenu">
-        <a href="about.php">About Us</a>
-        <a href="services.php">Services</a>
-        <a href="contact.php">Contact</a>
+        <button class="menu-toggle" onclick="toggleMenu()" aria-label="Toggle menu">☰</button>
+        <nav id="navMenu">
+            <a href="about.php">About</a>
+            <a href="services.php">Services</a>
+            <a href="contact.php">Contact</a>
 
-        <!-- Dropdown -->
-        <div class="dropdown">
-            <button class="dropbtn" onclick="toggleDropdown(event)">Account ▾</button>
-            <div class="dropdown-content">
-                <a href="login.php">Login</a>
-                <a href="signup.php">Sign Up</a>
+            <div class="dropdown">
+                <button class="dropbtn" onclick="toggleDropdown(event)">Account</button>
+                <div class="dropdown-content">
+                    <a href="login.php">Login</a>
+                    <a href="signup.php">Sign Up</a>
+                </div>
+            </div>
+
+            <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'landlord'): ?>
+                <a href="upload_property.php" class="upload-btn">Upload Property</a>
+            <?php else: ?>
+                <a href="login.php" class="upload-btn">Upload Property</a>
+            <?php endif; ?>
+        </nav>
+    </div>
+</header>
+
+<main>
+    <section class="hero-wrap container">
+        <div class="hero-carousel" id="heroCarousel">
+            <div class="slide active">
+                <img src="images/home-banner.png" alt="Find rental homes in Liberia">
+                <div class="hero-overlay"></div>
+                <div class="caption">
+                    <h2>Find Your Next Home With Confidence</h2>
+                    <p>Explore trusted rental listings across Liberia with fast search and verified hosts.</p>
+                </div>
+            </div>
+            <div class="slide">
+                <img src="images/home-banner-2.png" alt="Modern apartment building">
+                <div class="hero-overlay"></div>
+                <div class="caption">
+                    <h2>Simple Search. Real Listings.</h2>
+                    <p>From first visit to move-in, RentConnect helps renters and landlords stay connected.</p>
+                </div>
+            </div>
+
+            <div class="hero-dots" id="heroDots">
+                <button class="hero-dot active" type="button" aria-label="Go to slide 1"></button>
+                <button class="hero-dot" type="button" aria-label="Go to slide 2"></button>
             </div>
         </div>
 
-        <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'landlord'): ?>
-            <a href="upload_property.php" class="upload-btn">Upload Property</a>
-        <?php else: ?>
-            <a href="login.php" class="upload-btn">Upload Property</a>
-        <?php endif; ?>
-    </nav>
-</header>
+        <div class="search-panel">
+            <form method="get" action="">
+                <input type="text" name="location" placeholder="Search location" value="<?php echo htmlspecialchars($search_location); ?>">
+                <input type="number" name="min_price" placeholder="Minimum price" value="<?php echo $min_price ?: ''; ?>">
+                <input type="number" name="max_price" placeholder="Maximum price" value="<?php echo $max_price ?: ''; ?>">
+                <button type="submit">Search Homes</button>
+            </form>
+        </div>
+    </section>
 
+    <section class="section container">
+        <div class="section-head">
+            <div>
+                <h3>Latest Properties</h3>
+                <p>Fresh rental listings selected by your filters. Browse quickly and view details to continue.</p>
+            </div>
+        </div>
 
-<!-- Hero Carousel -->
-<section class="hero-carousel">
-  <div class="slide active">
-    <img src="images/home-banner.png" alt="Home Banner 1">
-    <div class="caption">
-      <h2>Find Your Perfect Home</h2>
-      <p>Browse verified rental listings across Liberia.</p>
-    </div>
-  </div>
-  <div class="slide">
-    <img src="images/home-banner-2.png" alt="Home Banner 2">
-    <div class="caption">
-      <h2>Secure & Affordable</h2>
-      <p>Trusted homes from verified landlords.</p>
-    </div>
-  </div>
-</section>
-
-<!-- Search Box -->
-<div class="search-box">
-  <form method="get" action="">
-    <div class="form-group">
-      <input 
-        type="text" 
-        name="location" 
-        placeholder="Enter location" 
-        value="<?php echo htmlspecialchars($search_location); ?>"
-      >
-    </div>
-    <div class="form-group">
-      <input 
-        type="number" 
-        name="min_price" 
-        placeholder="Min Price" 
-        value="<?php echo $min_price ?: ''; ?>"
-      >
-    </div>
-    <div class="form-group">
-      <input 
-        type="number" 
-        name="max_price" 
-        placeholder="Max Price" 
-        value="<?php echo $max_price ?: ''; ?>"
-      >
-    </div>
-    <button type="submit">Search</button>
-  </form>
-</div>
-
-<!-- Latest Properties -->
-<section class="section">
-    <h3>Latest Properties</h3>
-    <div class="properties">
-        <?php if ($properties->num_rows > 0): ?>
-            <?php while($property = $properties->fetch_assoc()): ?>
-                <div class="property">
-                    <div class="carousel" id="carousel-<?php echo $property['id']; ?>">
-                        <?php
-                        $img_stmt = $conn->prepare("SELECT id FROM property_images WHERE property_id=?");
-                        $img_stmt->bind_param("i", $property['id']);
-                        $img_stmt->execute();
-                        $images = $img_stmt->get_result();
-                        if ($images->num_rows > 0) {
-                            $first = true;
-                            while ($row = $images->fetch_assoc()) {
-                                echo '<img src="display_image.php?img_id='.$row['id'].'" class="'.($first ? 'active' : '').'" alt="Property Image">';
-                                $first = false;
+        <div class="properties">
+            <?php if ($properties->num_rows > 0): ?>
+                <?php while ($property = $properties->fetch_assoc()): ?>
+                    <article class="property">
+                        <div class="carousel" id="carousel-<?php echo $property['id']; ?>">
+                            <?php
+                            $img_stmt = $conn->prepare("SELECT id FROM property_images WHERE property_id=?");
+                            $img_stmt->bind_param("i", $property['id']);
+                            $img_stmt->execute();
+                            $images = $img_stmt->get_result();
+                            if ($images->num_rows > 0) {
+                                $first = true;
+                                while ($row = $images->fetch_assoc()) {
+                                    echo '<img src="display_image.php?img_id=' . $row['id'] . '" class="' . ($first ? 'active' : '') . '" alt="Property image">';
+                                    $first = false;
+                                }
+                            } else {
+                                echo '<img src="images/no-image.png" class="active" alt="No image available">';
                             }
-                        } else {
-                            echo '<img src="images/no-image.png" class="active" alt="No Image">';
-                        }
-                        ?>
-                        <button class="prev">&#10094;</button>
-                        <button class="next">&#10095;</button>
-                    </div>
-                    <div class="content">
-                        <h4><?php echo htmlspecialchars($property['title']); ?></h4>
-                        <p>📍 <?php echo htmlspecialchars($property['location']); ?></p>
-                        <p>💲 $<?php echo number_format($property['price']); ?></p>
-                        <?php if ($user_role === 'landlord'): ?>
-                            <p>Status: <strong><?php echo ucfirst($property['status']); ?></strong></p>
-                        <?php endif; ?>
-                        <p><i>Landlord: <?php echo htmlspecialchars($property['landlord_name']); ?></i></p>
-                        <a href="login.php">View Details</a>
-                    </div>
-                </div>
-            <?php endwhile; ?>
-        <?php else: ?>
-            <p>No properties found.</p>
-        <?php endif; ?>
-    </div>
-</section>
+                            ?>
+                            <button class="prev" type="button" aria-label="Previous image">&#10094;</button>
+                            <button class="next" type="button" aria-label="Next image">&#10095;</button>
+                        </div>
 
+                        <div class="content">
+                            <h4><?php echo htmlspecialchars($property['title']); ?></h4>
+                            <div class="meta">
+                                <span><?php echo htmlspecialchars($property['location']); ?></span>
+                                <?php if ($user_role === 'landlord'): ?>
+                                    <span>Status: <?php echo ucfirst($property['status']); ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <p class="price">$<?php echo number_format($property['price']); ?></p>
+                            <p class="landlord">Landlord: <?php echo htmlspecialchars($property['landlord_name']); ?></p>
+                            <a class="view-link" href="login.php">View Details</a>
+                        </div>
+                    </article>
+                <?php endwhile; ?>
+            <?php else: ?>
+                <div class="empty-state">No properties found for your current search. Try adjusting your filters.</div>
+            <?php endif; ?>
+        </div>
+    </section>
 
-<!-- Why Use RentConnect -->
-<section class="section">
-    <h3>Why Use RentConnect?</h3>
-    <div class="features">
-        <div class="feature">
-            <h4>For Renters</h4>
-            <p>Browse verified homes and apartments, save your favorites, and send rental requests securely.</p>
+    <section class="section container">
+        <div class="section-head">
+            <div>
+                <h3>Why Use RentConnect</h3>
+                <p>A practical rental platform made for both house seekers and property owners.</p>
+            </div>
         </div>
-        <div class="feature">
-            <h4>For Landlords</h4>
-            <p>Upload property listings with photos and manage rental requests from your dashboard.</p>
-        </div>
-        <div class="feature">
-            <h4>Secure & Easy</h4>
-            <p>Simple signup, safe login, and streamlined dashboards for renters and landlords.</p>
-        </div>
-    </div>
-</section>
 
-<!-- Footer -->
+        <div class="features">
+            <div class="feature">
+                <h4>For Renters</h4>
+                <p>Browse trusted apartments and homes, compare options quickly, and submit requests securely.</p>
+            </div>
+            <div class="feature">
+                <h4>For Landlords</h4>
+                <p>Upload listings with images, highlight key property details, and manage demand in one place.</p>
+            </div>
+            <div class="feature">
+                <h4>Secure and Fast</h4>
+                <p>Simple account flows, organized dashboards, and a cleaner experience from search to chat.</p>
+            </div>
+        </div>
+    </section>
+</main>
+
 <footer>
-    <p>&copy; <?php echo date("Y"); ?> RentConnect Liberia | All rights reserved. | <a href="contact.php">Contact Us</a></p>
+    <div class="container">
+        <p>&copy; <?php echo date("Y"); ?> RentConnect Liberia | All rights reserved. | <a href="contact.php">Contact Us</a></p>
+    </div>
 </footer>
-
-<script>
-// Toggle menu
-function toggleMenu() {
-    document.getElementById("navMenu").classList.toggle("active");
-}
-
-// Hero Carousel auto slide
-document.addEventListener("DOMContentLoaded", () => {
-    const heroSlides = document.querySelectorAll(".hero-carousel .slide");
-    let heroIndex = 0;
-    setInterval(() => {
-        heroSlides[heroIndex].classList.remove("active");
-        heroIndex = (heroIndex + 1) % heroSlides.length;
-        heroSlides[heroIndex].classList.add("active");
-    }, 4000);
-
-    // Property carousels
-    document.querySelectorAll(".carousel").forEach(carousel => {
-        const imgs = carousel.querySelectorAll("img");
-        let index = 0;
-        function showSlide(newIndex) {
-            imgs[index].classList.remove("active");
-            index = (newIndex + imgs.length) % imgs.length;
-            imgs[index].classList.add("active");
-        }
-        if (imgs.length > 0) imgs[0].classList.add("active");
-        setInterval(() => showSlide(index + 1), 3000);
-        carousel.querySelector(".prev").addEventListener("click", () => showSlide(index - 1));
-        carousel.querySelector(".next").addEventListener("click", () => showSlide(index + 1));
-    });
-});
-</script>
 
 <script>
 function toggleMenu() {
@@ -454,7 +786,85 @@ function toggleDropdown(event) {
     const dropdown = event.target.closest(".dropdown");
     dropdown.classList.toggle("active");
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+    const heroSlides = document.querySelectorAll(".hero-carousel .slide");
+    const heroDots = document.querySelectorAll(".hero-dot");
+    let heroIndex = 0;
+
+    function showHero(index) {
+        heroSlides[heroIndex].classList.remove("active");
+        heroDots[heroIndex].classList.remove("active");
+        heroIndex = (index + heroSlides.length) % heroSlides.length;
+        heroSlides[heroIndex].classList.add("active");
+        heroDots[heroIndex].classList.add("active");
+    }
+
+    if (heroSlides.length > 1) {
+        setInterval(() => showHero(heroIndex + 1), 4500);
+        heroDots.forEach((dot, idx) => {
+            dot.addEventListener("click", () => showHero(idx));
+        });
+    }
+
+    document.querySelectorAll(".carousel").forEach((carousel) => {
+        const imgs = carousel.querySelectorAll("img");
+        if (imgs.length <= 1) {
+            return;
+        }
+
+        let index = 0;
+        function showSlide(newIndex) {
+            imgs[index].classList.remove("active");
+            index = (newIndex + imgs.length) % imgs.length;
+            imgs[index].classList.add("active");
+        }
+
+        setInterval(() => showSlide(index + 1), 3000);
+        carousel.querySelector(".prev").addEventListener("click", () => showSlide(index - 1));
+        carousel.querySelector(".next").addEventListener("click", () => showSlide(index + 1));
+    });
+
+    document.addEventListener("click", (event) => {
+        if (!event.target.closest(".dropdown")) {
+            document.querySelectorAll(".dropdown").forEach((drop) => drop.classList.remove("active"));
+        }
+    });
+});
 </script>
 
+<script>
+// Register Service Worker for PWA
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+            .then((registration) => {
+                console.log('[PWA] Service Worker registered:', registration);
+                
+                // Check for updates periodically
+                setInterval(() => {
+                    registration.update();
+                }, 60000); // Check every minute
+            })
+            .catch((error) => {
+                console.warn('[PWA] Service Worker registration failed:', error);
+            });
+    });
+}
+
+// Handle PWA install prompt
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredPrompt = event;
+    console.log('[PWA] Install prompt available');
+});
+
+// Optional: Add a custom install button
+window.addEventListener('appinstalled', () => {
+    console.log('[PWA] App installed successfully');
+    deferredPrompt = null;
+});
+</script>
 </body>
 </html>

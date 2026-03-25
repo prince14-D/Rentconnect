@@ -5,36 +5,32 @@ include "db.php";
 $message = "";
 
 // Get token from URL
-$token = $_GET['token'] ?? '';
+$token = trim((string) ($_GET['token'] ?? ''));
 if (!$token) die("Invalid or expired reset link.");
 
-// Check token existence and get user_id + created_at
-$stmt = $conn->prepare("SELECT user_id, created_at FROM password_resets WHERE token=? LIMIT 1");
-$stmt->bind_param("s", $token);
-$stmt->execute();
-$stmt->bind_result($user_id, $created_at);
-
-if (!$stmt->fetch()) {
-    $stmt->close();
+// Check token existence and get user_id + created_at.
+$resetRow = rc_mig_get_password_reset_by_token($conn, $token);
+if (!$resetRow) {
     die("Invalid or expired reset link.");
 }
-$stmt->close();
+
+$user_id = (int) ($resetRow['user_id'] ?? 0);
+$created_at = (string) ($resetRow['created_at'] ?? '');
+if ($user_id <= 0 || $created_at === '') {
+    die("Invalid or expired reset link.");
+}
 
 // Check if token is older than 1 hour (3600 seconds)
-$expiry = strtotime($created_at) + 3600;
-if (time() > $expiry) {
-    // Delete expired token
-    $stmt = $conn->prepare("DELETE FROM password_resets WHERE token=?");
-    $stmt->bind_param("s", $token);
-    $stmt->execute();
-    $stmt->close();
+$createdTs = strtotime($created_at);
+if ($createdTs === false || time() > ($createdTs + 3600)) {
+    rc_mig_delete_password_reset_token($conn, $token);
     die("This reset link has expired. Please request a new one.");
 }
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $new_password = trim($_POST['new_password']);
-    $confirm_password = trim($_POST['confirm_password']);
+    $new_password = trim((string) ($_POST['new_password'] ?? ''));
+    $confirm_password = trim((string) ($_POST['confirm_password'] ?? ''));
 
     if ($new_password !== $confirm_password) {
         $message = "Passwords do not match.";
@@ -43,21 +39,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $hashed = password_hash($new_password, PASSWORD_DEFAULT);
 
-        // Update user password
-        $stmt = $conn->prepare("UPDATE users SET password=? WHERE id=?");
-        $stmt->bind_param("si", $hashed, $user_id);
-        $stmt->execute();
-        $stmt->close();
+        if (!rc_mig_update_user_password($conn, $user_id, $hashed)) {
+            $message = "Unable to update password. Please try again.";
+        } else {
+            rc_mig_delete_password_reset_token($conn, $token);
 
-        // Delete token after use
-        $stmt = $conn->prepare("DELETE FROM password_resets WHERE token=?");
-        $stmt->bind_param("s", $token);
-        $stmt->execute();
-        $stmt->close();
-
-        $_SESSION['success_message'] = "Password updated successfully. Please login.";
-        header("Location: login.php");
-        exit();
+            $_SESSION['success_message'] = "Password updated successfully. Please login.";
+            header("Location: login.php");
+            exit();
+        }
     }
 }
 ?>
@@ -66,6 +56,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="apple-touch-icon" href="/favicon.svg" />
+<link rel="icon" href="/favicon.svg" />
 <title>Reset Password - RentConnect</title>
 <style>
 body {
