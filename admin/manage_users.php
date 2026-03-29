@@ -49,6 +49,7 @@ $users = $conn->query("SELECT id, name, email, role, created_at FROM users ORDER
 body { font-family: Arial, sans-serif; background:#f4f6f9; margin:0; padding:20px; }
 h2 { color:#2E7D32; }
 a.back { color:#2E7D32; text-decoration:none; margin-bottom:15px; display:inline-block; }
+.table-wrap { overflow-x:auto; -webkit-overflow-scrolling: touch; border-radius:8px; }
 table { border-collapse: collapse; width:100%; background:white; border-radius:8px; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
 th, td { padding:12px; text-align:center; border-bottom:1px solid #ddd; }
 th { background:#f9f9f9; }
@@ -56,6 +57,14 @@ form { display:inline; }
 button, .btn { padding:6px 12px; border:none; border-radius:5px; cursor:pointer; font-size:0.9em; }
 .delete { background:#e53935; color:white; }
 .update { background:#2E7D32; color:white; }
+
+@media (max-width: 768px) {
+    body { padding: 12px; }
+    th, td { padding: 9px; font-size: 0.86rem; }
+    table { min-width: 780px; }
+    form[method="post"] { display: grid !important; gap: 6px; }
+    button, .btn { width: 100%; }
+}
 </style>
 </head>
 <body>
@@ -63,6 +72,7 @@ button, .btn { padding:6px 12px; border:none; border-radius:5px; cursor:pointer;
 <a href="index.php" class="back">⬅ Back to Dashboard</a>
 <h2>👤 Manage Users</h2>
 
+<div class="table-wrap">
 <table>
     <tr>
         <th>ID</th>
@@ -99,6 +109,7 @@ button, .btn { padding:6px 12px; border:none; border-radius:5px; cursor:pointer;
     </tr>
     <?php endwhile; ?>
 </table>
+</div>
 
 </body>
 </html>

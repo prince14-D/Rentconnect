@@ -316,6 +316,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     <script>
     const firebaseConfig = <?php echo json_encode($firebase_config, JSON_UNESCAPED_SLASHES); ?>;
+    const googleRoleStorageKey = "rentconnect_google_signup_role";
+    let firebaseAuthRuntimePromise = null;
 
     function firebaseErrorMessage(err, fallback) {
         const code = String(err?.code || '');
@@ -325,27 +327,65 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if (code === 'auth/unauthorized-domain') {
             return "This domain is not authorized for Firebase Auth. Add it in Firebase Console > Authentication > Settings > Authorized domains.";
         }
+        if (code === 'auth/popup-blocked' || code === 'auth/popup-closed-by-user') {
+            return "Popup sign-in was blocked. We will switch to full-page Google redirect.";
+        }
         return err?.message || fallback;
     }
 
-    async function signUpWithGoogle() {
-        if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-            alert("Firebase config is missing. Set FIREBASE_* environment variables first.");
-            return;
+    function isPopupFailure(err) {
+        const code = String(err?.code || '');
+        return code === 'auth/popup-blocked'
+            || code === 'auth/popup-closed-by-user'
+            || code === 'auth/cancelled-popup-request'
+            || code === 'auth/operation-not-supported-in-this-environment';
+    }
+
+    function getSelectedGoogleRole() {
+        const roleSelect = document.getElementById("google_role");
+        const role = String(roleSelect?.value || "renter");
+        if (role !== "landlord" && role !== "renter") {
+            return "renter";
+        }
+        return role;
+    }
+
+    async function getFirebaseAuthRuntime() {
+        if (firebaseAuthRuntimePromise) {
+            return firebaseAuthRuntimePromise;
         }
 
-        const [{ initializeApp }, { getAuth, GoogleAuthProvider, signInWithPopup }] = await Promise.all([
-            import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js"),
-            import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js")
-        ]);
+        firebaseAuthRuntimePromise = (async () => {
+            const [{ initializeApp }, {
+                getAuth,
+                GoogleAuthProvider,
+                signInWithPopup,
+                signInWithRedirect,
+                getRedirectResult,
+                setPersistence,
+                browserLocalPersistence
+            }] = await Promise.all([
+                import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js"),
+                import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js")
+            ]);
 
-        const app = initializeApp(firebaseConfig, "rentconnect-signup");
-        const auth = getAuth(app);
-        const provider = new GoogleAuthProvider();
-        const result = await signInWithPopup(auth, provider);
-        const idToken = await result.user.getIdToken();
-        const role = document.getElementById("google_role").value;
+            const app = initializeApp(firebaseConfig, "rentconnect-signup");
+            const auth = getAuth(app);
+            await setPersistence(auth, browserLocalPersistence);
 
+            return {
+                auth,
+                provider: new GoogleAuthProvider(),
+                signInWithPopup,
+                signInWithRedirect,
+                getRedirectResult
+            };
+        })();
+
+        return firebaseAuthRuntimePromise;
+    }
+
+    async function sendFirebaseTokenToBackend(idToken, role) {
         const response = await fetch("firebase_auth.php", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -357,7 +397,46 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             throw new Error(data.error || "Google signup failed");
         }
 
+        sessionStorage.removeItem(googleRoleStorageKey);
         window.location.href = data.redirect;
+    }
+
+    async function handleGoogleRedirectResult() {
+        if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+            return;
+        }
+
+        const runtime = await getFirebaseAuthRuntime();
+        const redirectResult = await runtime.getRedirectResult(runtime.auth);
+        if (redirectResult?.user) {
+            const idToken = await redirectResult.user.getIdToken();
+            const savedRole = String(sessionStorage.getItem(googleRoleStorageKey) || "renter");
+            const role = savedRole === "landlord" ? "landlord" : "renter";
+            await sendFirebaseTokenToBackend(idToken, role);
+        }
+    }
+
+    async function signUpWithGoogle() {
+        if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+            alert("Firebase config is missing. Set FIREBASE_* environment variables first.");
+            return;
+        }
+
+        const role = getSelectedGoogleRole();
+        sessionStorage.setItem(googleRoleStorageKey, role);
+
+        const runtime = await getFirebaseAuthRuntime();
+        try {
+            const result = await runtime.signInWithPopup(runtime.auth, runtime.provider);
+            const idToken = await result.user.getIdToken();
+            await sendFirebaseTokenToBackend(idToken, role);
+        } catch (err) {
+            if (isPopupFailure(err)) {
+                await runtime.signInWithRedirect(runtime.auth, runtime.provider);
+                return;
+            }
+            throw err;
+        }
     }
 
     document.getElementById("googleSignupBtn").addEventListener("click", async function () {
@@ -366,6 +445,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         } catch (err) {
             alert(firebaseErrorMessage(err, "Google signup failed."));
         }
+    });
+
+    handleGoogleRedirectResult().catch((err) => {
+        alert(firebaseErrorMessage(err, "Google signup failed after redirect."));
     });
 
     if ('serviceWorker' in navigator) {

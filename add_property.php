@@ -11,28 +11,86 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'landlord') {
 $landlord_id = (int) $_SESSION['user_id'];
 $message = "";
 
+$landlord_profile = rc_mig_get_user_profile($conn, $landlord_id) ?: [];
+$default_phone = trim((string) ($landlord_profile['phone'] ?? ''));
+
+$form = [
+  'title' => '',
+  'location' => '',
+  'address' => '',
+  'price' => '',
+  'purpose' => 'rent',
+  'contact' => $default_phone,
+  'bedrooms' => '0',
+  'bathrooms' => '0',
+  'available_from' => '',
+  'amenities' => '',
+  'description' => '',
+];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  foreach ($form as $key => $value) {
+    if (isset($_POST[$key])) {
+      $form[$key] = trim((string) $_POST[$key]);
+    }
+  }
+}
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $title = trim((string) ($_POST['title'] ?? ''));
-    $location = trim((string) ($_POST['location'] ?? ''));
-    $price = (float) ($_POST['price'] ?? 0);
-    $contact = trim((string) ($_POST['contact'] ?? ''));
-    $bedrooms = (int) ($_POST['bedrooms'] ?? 0);
-    $bathrooms = (int) ($_POST['bathrooms'] ?? 0);
-    $description = trim((string) ($_POST['description'] ?? ''));
+  $title = $form['title'];
+  $location = $form['location'];
+  $address = $form['address'];
+  $price = (float) ($form['price'] !== '' ? $form['price'] : 0);
+  $purpose = strtolower($form['purpose']);
+  $contact = $form['contact'];
+  $bedrooms = (int) ($form['bedrooms'] !== '' ? $form['bedrooms'] : 0);
+  $bathrooms = (int) ($form['bathrooms'] !== '' ? $form['bathrooms'] : 0);
+  $available_from = $form['available_from'];
+  $amenities = $form['amenities'];
+  $description = $form['description'];
 
+  if ($title === '' || $location === '' || $price <= 0 || $contact === '') {
+    $message = 'Title, location, landlord number, and price are required.';
+  } elseif (!preg_match('/^[0-9+()\-\s]{7,20}$/', $contact)) {
+    $message = 'Please provide a valid landlord phone number.';
+  }
+
+  $extra_details = [];
+  if ($address !== '') {
+    $extra_details[] = 'Address: ' . $address;
+  }
+  if ($purpose !== '') {
+    $extra_details[] = 'Purpose: ' . ucfirst($purpose);
+  }
+  if ($available_from !== '') {
+    $extra_details[] = 'Available From: ' . $available_from;
+  }
+  if ($amenities !== '') {
+    $extra_details[] = 'Amenities: ' . $amenities;
+  }
+  $full_description = trim($description);
+  if (!empty($extra_details)) {
+    $full_description = trim($full_description . "\n\n" . implode("\n", $extra_details));
+  }
+
+  $created = ['ok' => false];
+  if ($message === '') {
     $created = rc_mig_create_property($conn, $landlord_id, [
-        'title' => $title,
-        'location' => $location,
-        'price' => $price,
-        'contact' => $contact,
-        'bedrooms' => $bedrooms,
-        'bathrooms' => $bathrooms,
-        'description' => $description,
-        'status' => 'pending',
+      'title' => $title,
+      'location' => $location,
+      'price' => $price,
+      'contact' => $contact,
+      'bedrooms' => $bedrooms,
+      'bathrooms' => $bathrooms,
+      'description' => $full_description,
+      'status' => 'pending',
     ]);
+  }
 
-    if (!empty($created['ok'])) {
+  if ($message !== '') {
+    // Keep validation message.
+  } elseif (!empty($created['ok'])) {
         $property_id = (int) ($created['id'] ?? 0);
 
         if (!empty($_FILES['photos']['name'][0])) {
@@ -253,37 +311,57 @@ button {
       <div class="form-grid">
         <div class="field">
           <label for="title">Property Title</label>
-          <input id="title" type="text" name="title" required>
+          <input id="title" type="text" name="title" required value="<?php echo htmlspecialchars($form['title']); ?>">
         </div>
 
         <div class="field">
           <label for="location">Location</label>
-          <input id="location" type="text" name="location" required>
+          <input id="location" type="text" name="location" required value="<?php echo htmlspecialchars($form['location']); ?>">
+        </div>
+
+        <div class="field">
+          <label for="address">Full Address</label>
+          <input id="address" type="text" name="address" placeholder="Street / community / nearby landmark" value="<?php echo htmlspecialchars($form['address']); ?>">
         </div>
 
         <div class="field">
           <label for="price">Price (USD)</label>
-          <input id="price" type="number" step="0.01" name="price" required>
+          <input id="price" type="number" step="0.01" name="price" min="1" required value="<?php echo htmlspecialchars($form['price']); ?>">
         </div>
 
         <div class="field">
-          <label for="contact">Contact Info</label>
-          <input id="contact" type="text" name="contact" required>
+          <label for="purpose">Listing Purpose</label>
+          <input id="purpose" type="text" name="purpose" placeholder="Rent / Lease" value="<?php echo htmlspecialchars($form['purpose']); ?>">
+        </div>
+
+        <div class="field">
+          <label for="contact">Landlord Phone Number</label>
+          <input id="contact" type="text" name="contact" placeholder="e.g. +231775637587" required value="<?php echo htmlspecialchars($form['contact']); ?>">
         </div>
 
         <div class="field">
           <label for="bedrooms">Bedrooms</label>
-          <input id="bedrooms" type="number" name="bedrooms" min="0" value="0">
+          <input id="bedrooms" type="number" name="bedrooms" min="0" value="<?php echo htmlspecialchars($form['bedrooms']); ?>">
         </div>
 
         <div class="field">
           <label for="bathrooms">Bathrooms</label>
-          <input id="bathrooms" type="number" name="bathrooms" min="0" value="0">
+          <input id="bathrooms" type="number" name="bathrooms" min="0" value="<?php echo htmlspecialchars($form['bathrooms']); ?>">
+        </div>
+
+        <div class="field">
+          <label for="available_from">Available From</label>
+          <input id="available_from" type="date" name="available_from" value="<?php echo htmlspecialchars($form['available_from']); ?>">
+        </div>
+
+        <div class="field">
+          <label for="amenities">Amenities (comma separated)</label>
+          <input id="amenities" type="text" name="amenities" placeholder="Parking, Security, Generator" value="<?php echo htmlspecialchars($form['amenities']); ?>">
         </div>
 
         <div class="field full">
           <label for="description">Description</label>
-          <textarea id="description" name="description" placeholder="Describe key features, neighborhood, and amenities."></textarea>
+          <textarea id="description" name="description" placeholder="Describe key features, neighborhood, and amenities."><?php echo htmlspecialchars($form['description']); ?></textarea>
         </div>
 
         <div class="field full">

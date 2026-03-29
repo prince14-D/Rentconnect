@@ -225,6 +225,20 @@ if ($check_column->num_rows === 0) {
         a:hover {
             text-decoration: underline;
         }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 12px;
+            }
+
+            .container {
+                padding: 18px;
+            }
+
+            h1 {
+                font-size: 1.2rem;
+            }
+        }
     </style>
 </head>
 <body>

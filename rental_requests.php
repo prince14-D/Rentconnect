@@ -110,6 +110,32 @@ body {
   margin-top: 8px;
 }
 
+.renter-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.renter-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  background: #f1f4f8;
+}
+
+.renter-name {
+  font-weight: 700;
+}
+
+.renter-meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 2px 0;
+}
+
 .status {
   display: inline-block;
   padding: 4px 9px;
@@ -167,13 +193,59 @@ body {
           <h2><?php echo htmlspecialchars($row['property_title']); ?></h2>
           <p class="meta">$<?php echo number_format($row['price']); ?> | <?php echo htmlspecialchars($row['location']); ?></p>
           <?php
-          $renters = explode('||', $row['renters']);
-          foreach ($renters as $r):
-              list($r_name, $r_id, $r_status, $r_request_id) = explode('|', $r);
+          $renters_list = [];
+          if (isset($row['renters_list']) && is_array($row['renters_list'])) {
+              $renters_list = $row['renters_list'];
+          } elseif (!empty($row['renters'])) {
+              $renters = explode('||', (string) $row['renters']);
+              foreach ($renters as $r) {
+                  if (trim($r) === '') {
+                      continue;
+                  }
+                  $parts = explode('|', $r);
+                  $renters_list[] = [
+                      'name' => (string) ($parts[0] ?? 'Renter'),
+                      'id' => (int) ($parts[1] ?? 0),
+                      'status' => (string) ($parts[2] ?? 'pending'),
+                      'request_id' => (int) ($parts[3] ?? 0),
+                      'email' => (string) ($parts[4] ?? ''),
+                      'phone' => (string) ($parts[5] ?? ''),
+                      'profile_pic' => (string) ($parts[6] ?? ''),
+                      'requested_at' => '',
+                  ];
+              }
+          }
+
+          foreach ($renters_list as $renter):
+              $r_name = (string) ($renter['name'] ?? 'Renter');
+              $r_id = (int) ($renter['id'] ?? 0);
+              $r_status = (string) ($renter['status'] ?? 'pending');
+              $r_request_id = (int) ($renter['request_id'] ?? 0);
+              $r_email = (string) ($renter['email'] ?? '');
+              $r_phone = (string) ($renter['phone'] ?? '');
+              $r_profile_pic = (string) ($renter['profile_pic'] ?? '');
+              $r_requested_at = (string) ($renter['requested_at'] ?? '');
+              if ($r_profile_pic === '') {
+                  $r_profile_pic = 'images/default-avatar.png';
+              }
           ?>
             <div class="renter">
               <span class="status <?php echo htmlspecialchars($r_status); ?>"><?php echo ucfirst($r_status); ?></span>
-              <p><?php echo htmlspecialchars($r_name); ?></p>
+              <div class="renter-head">
+                <img src="<?php echo htmlspecialchars($r_profile_pic); ?>" alt="Renter photo" class="renter-avatar">
+                <div>
+                  <p class="renter-name"><?php echo htmlspecialchars($r_name); ?></p>
+                  <?php if ($r_email !== ''): ?>
+                    <p class="renter-meta"><?php echo htmlspecialchars($r_email); ?></p>
+                  <?php endif; ?>
+                </div>
+              </div>
+              <?php if ($r_phone !== ''): ?>
+                <p class="renter-meta">Phone: <?php echo htmlspecialchars($r_phone); ?></p>
+              <?php endif; ?>
+              <?php if ($r_requested_at !== ''): ?>
+                <p class="renter-meta">Requested: <?php echo htmlspecialchars($r_requested_at); ?></p>
+              <?php endif; ?>
               <div class="actions">
                 <?php if ($r_status === 'pending'): ?>
                   <a href="?action=approve&request_id=<?php echo (int) $r_request_id; ?>" class="approve">Approve</a>

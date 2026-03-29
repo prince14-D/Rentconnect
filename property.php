@@ -25,6 +25,14 @@ $firstImageId = isset($propertyImages[0]['id']) ? (int) $propertyImages[0]['id']
 $heroImageSrc = $firstImageId > 0
     ? 'display_image.php?img_id=' . $firstImageId
     : 'images/no-image.png';
+
+$back_url = 'index.php';
+if (!empty($_SERVER['HTTP_REFERER'])) {
+    $referer_path = parse_url((string) $_SERVER['HTTP_REFERER'], PHP_URL_PATH);
+    if (is_string($referer_path) && $referer_path !== '') {
+        $back_url = ltrim($referer_path, '/');
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -250,6 +258,29 @@ $heroImageSrc = $firstImageId > 0
             color: #f39c12;
         }
 
+        .back-row {
+            margin-bottom: 10px;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            border: 1px solid var(--line);
+            color: #30435c;
+            background: #fff;
+            border-radius: 9px;
+            padding: 8px 11px;
+            font-size: 0.84rem;
+            font-weight: 800;
+        }
+
+        .back-btn:hover {
+            background: #f3f8fb;
+            color: #1f8f67;
+        }
+
         .btn-book {
             color: #fff !important;
             background: linear-gradient(140deg, #27ae60, #1e8449) !important;
@@ -285,6 +316,10 @@ $heroImageSrc = $firstImageId > 0
 
 <main class="page">
     <div class="container">
+        <div class="back-row">
+            <a href="<?php echo htmlspecialchars($back_url); ?>" class="back-btn">&larr; Back</a>
+        </div>
+
         <article class="property-card">
             <img src="<?php echo htmlspecialchars($heroImageSrc); ?>" alt="Property" class="hero-image">
 
@@ -344,6 +379,8 @@ $heroImageSrc = $firstImageId > 0
                         <h3>Contact Landlord</h3>
                         <p>Name: <?php echo htmlspecialchars($property['owner_name']); ?></p>
                         <p>Email: <?php echo htmlspecialchars($property['owner_email']); ?></p>
+                        <p>Phone: <?php echo htmlspecialchars((string) (($property['contact'] ?? '') !== '' ? $property['contact'] : ($property['owner_phone'] ?? 'Not provided'))); ?></p>
+                        <p>Location: <?php echo htmlspecialchars((string) ($property['location'] ?? 'Not provided')); ?></p>
                         <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] == 'renter'): ?>
                             <p><a href="chat.php?property_id=<?php echo $property['id']; ?>&with=<?php echo $_SESSION['user_id'] == $property['owner_id'] ? 'self' : $property['owner_id']; ?>" style="color: var(--brand); text-decoration: none; font-weight: 700;">Start Conversation →</a></p>
                         <?php else: ?>

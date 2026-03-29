@@ -10,16 +10,32 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'renter') {
 $renter_id = $_SESSION['user_id'];
 $message = "";
 
+$view = strtolower(trim((string) ($_GET['view'] ?? 'all')));
+if (!in_array($view, ['all', 'unread', 'read'], true)) {
+  $view = 'all';
+}
+
 // Mark reminder as read
 if (isset($_GET['mark_read']) && is_numeric($_GET['mark_read'])) {
     $reminder_id = intval($_GET['mark_read']);
     $stmt = $conn->prepare("UPDATE rent_reminders SET is_read = 1, read_at = NOW() WHERE id = ? AND renter_id = ?");
     $stmt->bind_param("ii", $reminder_id, $renter_id);
     if ($stmt->execute()) {
-        header("Location: rent_reminders.php");
+      header("Location: rent_reminders.php?view=" . urlencode($view));
         exit;
     }
 }
+
+  if (isset($_GET['mark_all_read']) && $_GET['mark_all_read'] === '1') {
+    $stmt = $conn->prepare("UPDATE rent_reminders SET is_read = 1, read_at = NOW() WHERE renter_id = ? AND is_read = 0");
+    if ($stmt) {
+      $stmt->bind_param("i", $renter_id);
+      $stmt->execute();
+      $stmt->close();
+    }
+    header("Location: rent_reminders.php?view=all");
+    exit;
+  }
 
 // Fetch reminders
 $sql = "
@@ -40,7 +56,8 @@ ORDER BY rr.is_read ASC, rr.created_at DESC
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("i", $renter_id);
 $stmt->execute();
-$reminders = $stmt->get_result();
+$reminders_result = $stmt->get_result();
+$all_reminders = $reminders_result ? $reminders_result->fetch_all(MYSQLI_ASSOC) : [];
 
 // Count unread reminders
 $unread_sql = "SELECT COUNT(*) as unread_count FROM rent_reminders WHERE renter_id = ? AND is_read = 0";
@@ -48,6 +65,20 @@ $stmt = $conn->prepare($unread_sql);
 $stmt->bind_param("i", $renter_id);
 $stmt->execute();
 $unread_count = $stmt->get_result()->fetch_assoc()['unread_count'];
+$total_count = count($all_reminders);
+$read_count = max(0, $total_count - (int) $unread_count);
+
+$reminders = array_values(array_filter($all_reminders, static function (array $reminder) use ($view): bool {
+  if ($view === 'unread') {
+    return (int) ($reminder['is_read'] ?? 0) === 0;
+  }
+  if ($view === 'read') {
+    return (int) ($reminder['is_read'] ?? 0) === 1;
+  }
+  return true;
+}));
+
+$current_page = basename((string) ($_SERVER['PHP_SELF'] ?? 'rent_reminders.php'));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -87,7 +118,7 @@ body {
   min-height: 100vh;
   padding: 28px 0;
 }
-.container { width: min(900px, 94vw); margin: 0 auto; }
+.container { width: min(1220px, 96vw); margin: 0 auto; }
 .hero {
   background: linear-gradient(140deg, rgba(16, 62, 79, 0.93), rgba(31, 143, 103, 0.86));
   color: #fff;
@@ -277,6 +308,132 @@ body {
   color: var(--muted);
 }
 .empty-message i { font-size: 3rem; margin-bottom: 16px; opacity: 0.2; }
+
+.dashboard-shell {
+  margin-top: 14px;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.side-services {
+  width: 250px;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, rgba(19, 64, 78, 0.96), rgba(16, 50, 63, 0.96));
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: 0 10px 24px rgba(15, 31, 40, 0.14);
+  position: sticky;
+  top: 14px;
+}
+
+.side-services h3 {
+  color: #fff;
+  margin: 4px 4px 10px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 1rem;
+}
+
+.service-btns {
+  display: grid;
+  gap: 7px;
+}
+
+.service-btn {
+  text-decoration: none;
+  color: #eaf4f6;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  padding: 9px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.service-btn:hover,
+.service-btn.active {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.34);
+  transform: translateX(2px);
+}
+
+.main-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.top-tools {
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-pills a {
+  text-decoration: none;
+  color: #234b66;
+  border: 1px solid #cbdbe6;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  background: #fff;
+}
+
+.filter-pills a.active {
+  background: #1f8f67;
+  color: #fff;
+  border-color: #1f8f67;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.stat {
+  background: rgba(255,255,255,0.9);
+  border: 1px solid #d8e4ed;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.stat .label {
+  color: var(--muted);
+  font-size: 0.77rem;
+  font-weight: 700;
+}
+
+.stat .value {
+  margin-top: 4px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+@media (max-width: 980px) {
+  .dashboard-shell { flex-direction: column; }
+  .side-services { width: 100%; position: static; }
+  .service-btns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stats { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .service-btns { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
@@ -291,15 +448,58 @@ body {
     <?php endif; ?>
   </div>
 
+  <div class="dashboard-shell">
+    <aside class="side-services">
+      <h3>Renter Services</h3>
+      <div class="service-btns">
+        <a href="renter_profile.php" class="service-btn <?php echo $current_page === 'renter_profile.php' ? 'active' : ''; ?>">👤 Profile</a>
+        <a href="browse_properties.php" class="service-btn <?php echo $current_page === 'browse_properties.php' ? 'active' : ''; ?>">🏡 Browse Properties</a>
+        <a href="my_requests.php" class="service-btn <?php echo $current_page === 'my_requests.php' ? 'active' : ''; ?>">📨 My Requests</a>
+        <a href="active_bookings.php" class="service-btn <?php echo $current_page === 'active_bookings.php' ? 'active' : ''; ?>">📋 Active Bookings</a>
+        <a href="rent_reminders.php" class="service-btn <?php echo $current_page === 'rent_reminders.php' ? 'active' : ''; ?>">🔔 Reminders</a>
+        <a href="rent_payments.php" class="service-btn <?php echo $current_page === 'rent_payments.php' ? 'active' : ''; ?>">💳 Payments</a>
+        <a href="chat_list.php" class="service-btn <?php echo in_array($current_page, ['chat.php', 'chat_list.php'], true) ? 'active' : ''; ?>">💬 Chat</a>
+        <a href="index.php" class="service-btn">↩ Back to Home</a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+
+  <div class="stats">
+    <div class="stat">
+      <div class="label">Total Reminders</div>
+      <div class="value"><?php echo (int) $total_count; ?></div>
+    </div>
+    <div class="stat">
+      <div class="label">Unread</div>
+      <div class="value"><?php echo (int) $unread_count; ?></div>
+    </div>
+    <div class="stat">
+      <div class="label">Read</div>
+      <div class="value"><?php echo (int) $read_count; ?></div>
+    </div>
+  </div>
+
+  <div class="top-tools">
+    <div class="filter-pills">
+      <a href="?view=all" class="<?php echo $view === 'all' ? 'active' : ''; ?>">All</a>
+      <a href="?view=unread" class="<?php echo $view === 'unread' ? 'active' : ''; ?>">Unread</a>
+      <a href="?view=read" class="<?php echo $view === 'read' ? 'active' : ''; ?>">Read</a>
+    </div>
+    <?php if ((int) $unread_count > 0): ?>
+      <a href="?mark_all_read=1" class="action-button">Mark All as Read</a>
+    <?php endif; ?>
+  </div>
+
   <div class="reminder-list">
-    <?php if ($reminders->num_rows === 0): ?>
+    <?php if (count($reminders) === 0): ?>
       <div class="empty-message">
         <i class="fas fa-bell-slash"></i>
-        <h3>No Reminders Yet</h3>
-        <p>Your landlords will send you rent reminders here</p>
+        <h3>No Reminders Found</h3>
+        <p>Try another filter or check back later.</p>
       </div>
     <?php else: ?>
-      <?php while ($reminder = $reminders->fetch_assoc()): ?>
+      <?php foreach ($reminders as $reminder): ?>
       <div class="reminder-card <?php echo ($reminder['is_read']) ? 'read' : ''; ?>">
         <div class="reminder-header">
           <div>
@@ -312,7 +512,7 @@ body {
             </span>
           </div>
           <?php if (!$reminder['is_read']): ?>
-            <a href="rent_reminders.php?mark_read=<?php echo $reminder['id']; ?>" class="action-button">
+            <a href="rent_reminders.php?mark_read=<?php echo $reminder['id']; ?>&view=<?php echo urlencode($view); ?>" class="action-button">
               Mark Read
             </a>
           <?php endif; ?>
@@ -366,8 +566,10 @@ body {
           </a>
         </div>
       </div>
-      <?php endwhile; ?>
+      <?php endforeach; ?>
     <?php endif; ?>
+  </div>
+    </main>
   </div>
 </div>
 

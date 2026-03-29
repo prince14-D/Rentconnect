@@ -50,6 +50,7 @@ $properties = rc_mig_get_manage_properties_rows($conn);
 body { font-family: Arial, sans-serif; background:#f4f6f9; margin:0; padding:20px; }
 h2 { color:#2E7D32; }
 a.back { color:#2E7D32; text-decoration:none; margin-bottom:15px; display:inline-block; }
+.table-wrap { overflow-x:auto; -webkit-overflow-scrolling: touch; border-radius:8px; }
 table { border-collapse: collapse; width:100%; background:white; border-radius:8px; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
 th, td { padding:12px; text-align:center; border-bottom:1px solid #ddd; }
 th { background:#f9f9f9; }
@@ -61,6 +62,13 @@ th { background:#f9f9f9; }
 .pending { color:#f57c00; }
 .approved { color:#2E7D32; }
 .rejected { color:#e53935; }
+
+@media (max-width: 768px) {
+    body { padding: 12px; }
+    th, td { padding: 9px; font-size: 0.86rem; }
+    table { min-width: 760px; }
+    .action-btn { width: 100%; margin: 3px 0; text-align: center; }
+}
 </style>
 </head>
 <body>
@@ -68,6 +76,7 @@ th { background:#f9f9f9; }
 <a href="index.php" class="back">⬅ Back to Dashboard</a>
 <h2>🏠 Manage Properties</h2>
 
+<div class="table-wrap">
 <table>
     <tr>
         <th>ID</th>
@@ -98,6 +107,7 @@ th { background:#f9f9f9; }
     </tr>
     <?php endforeach; ?>
 </table>
+</div>
 
 </body>
 </html>

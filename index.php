@@ -20,6 +20,29 @@ $properties = rc_mig_get_index_properties(
     $max_price,
     12
 );
+
+if (!empty($properties)) {
+    usort($properties, static function (array $a, array $b): int {
+        $aStatus = strtolower((string) ($a['status'] ?? ''));
+        $bStatus = strtolower((string) ($b['status'] ?? ''));
+        $aBooking = strtolower((string) ($a['booking_status'] ?? 'available'));
+        $bBooking = strtolower((string) ($b['booking_status'] ?? 'available'));
+
+        $aAvailable = !in_array($aStatus, ['taken', 'booked', 'inactive', 'rejected'], true)
+            && !in_array($aBooking, ['taken', 'booked', 'maintenance'], true);
+        $bAvailable = !in_array($bStatus, ['taken', 'booked', 'inactive', 'rejected'], true)
+            && !in_array($bBooking, ['taken', 'booked', 'maintenance'], true);
+
+        if ($aAvailable !== $bAvailable) {
+            return $aAvailable ? -1 : 1;
+        }
+
+        $aCreated = strtotime((string) ($a['created_at'] ?? '')) ?: 0;
+        $bCreated = strtotime((string) ($b['created_at'] ?? '')) ?: 0;
+
+        return $bCreated <=> $aCreated;
+    });
+}
 ?>
 
 <!DOCTYPE html>
@@ -438,6 +461,27 @@ $properties = rc_mig_get_index_properties(
             border-radius: 999px;
         }
 
+        .status-chip.available {
+            color: #0c5f44;
+            background: rgba(31, 143, 103, 0.12);
+            border-color: rgba(31, 143, 103, 0.24);
+            font-weight: 700;
+        }
+
+        .status-chip.booked {
+            color: #5d6576;
+            background: rgba(121, 132, 150, 0.14);
+            border-color: rgba(121, 132, 150, 0.24);
+            font-weight: 700;
+        }
+
+        .status-chip.new {
+            color: #8a3f00;
+            background: rgba(255, 122, 47, 0.16);
+            border-color: rgba(255, 122, 47, 0.3);
+            font-weight: 700;
+        }
+
         .price {
             font-size: 1.12rem;
             font-weight: 800;
@@ -661,13 +705,21 @@ $properties = rc_mig_get_index_properties(
         <div class="section-head">
             <div>
                 <h3>Latest Properties</h3>
-                <p>Fresh rental listings selected by your filters. Browse quickly and view details to continue.</p>
+                <p>Available properties appear first, and newest listings are prioritized in every result.</p>
             </div>
         </div>
 
         <div class="properties">
             <?php if (!empty($properties)): ?>
                 <?php foreach ($properties as $property): ?>
+                    <?php
+                    $status = strtolower((string) ($property['status'] ?? ''));
+                    $bookingStatus = strtolower((string) ($property['booking_status'] ?? 'available'));
+                    $isAvailable = !in_array($status, ['taken', 'booked', 'inactive', 'rejected'], true)
+                        && !in_array($bookingStatus, ['taken', 'booked', 'maintenance'], true);
+                    $createdAt = strtotime((string) ($property['created_at'] ?? '')) ?: 0;
+                    $isNew = $createdAt > 0 && (time() - $createdAt) <= (7 * 24 * 60 * 60);
+                    ?>
                     <article class="property">
                         <div class="carousel" id="carousel-<?php echo $property['id']; ?>">
                             <?php
@@ -689,7 +741,13 @@ $properties = rc_mig_get_index_properties(
                         <div class="content">
                             <h4><?php echo htmlspecialchars($property['title']); ?></h4>
                             <div class="meta">
+                                <?php if ($isNew): ?>
+                                    <span class="status-chip new">Just Added</span>
+                                <?php endif; ?>
                                 <span><?php echo htmlspecialchars($property['location']); ?></span>
+                                <span class="status-chip <?php echo $isAvailable ? 'available' : 'booked'; ?>">
+                                    <?php echo $isAvailable ? 'Available' : 'Booked'; ?>
+                                </span>
                                 <?php if ($user_role === 'landlord'): ?>
                                     <span>Status: <?php echo ucfirst($property['status']); ?></span>
                                 <?php endif; ?>

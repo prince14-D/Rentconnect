@@ -8,13 +8,26 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'landlord') {
     exit;
 }
 
-$landlord_id = $_SESSION['user_id'];
+$landlord_id = (int) $_SESSION['user_id'];
 $message = "";
 
 // Optional search by title or location
-$search = isset($_GET['search']) ? trim($_GET['search']) : '';
+$search = trim((string) ($_GET['search'] ?? ''));
 
 $result = rc_mig_get_landlord_properties($conn, (int) $landlord_id, 'taken', (string) $search);
+
+$taken_count = count($result);
+$total_price = 0.0;
+$latest_taken = null;
+foreach ($result as $row) {
+  $total_price += (float) ($row['price'] ?? 0);
+  $created_at = (string) ($row['created_at'] ?? '');
+  $ts = strtotime($created_at);
+  if ($ts !== false && ($latest_taken === null || $ts > $latest_taken)) {
+    $latest_taken = $ts;
+  }
+}
+$avg_price = $taken_count > 0 ? ($total_price / $taken_count) : 0.0;
 
 function format_date($date_str) {
     return date("M d, Y", strtotime($date_str));
@@ -167,11 +180,55 @@ header a:hover {
     box-shadow: var(--shadow);
 }
 
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.stat-card {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.9rem;
+  background: #fff;
+}
+
+.stat-label {
+  color: var(--text-light);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.stat-value {
+  margin-top: 0.2rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.taken-note {
+  border: 1px solid #bbdefb;
+  background: #eef6ff;
+  color: #0d47a1;
+  border-radius: 10px;
+  padding: 0.85rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
 .search-bar {
     margin-bottom: 2rem;
     display: flex;
     gap: 1rem;
     flex-wrap: wrap;
+}
+
+.search-meta {
+  color: var(--text-light);
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
 }
 
 .search-bar form {
@@ -211,6 +268,59 @@ header a:hover {
     background: var(--primary-light);
     transform: translateY(-1px);
     box-shadow: var(--shadow);
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.toolbar-actions a {
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-bookings {
+  background: #1976d2;
+  color: #fff;
+}
+
+.btn-income {
+  background: #455a64;
+  color: #fff;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.mobile-cards {
+  display: none;
+  gap: 0.75rem;
+}
+
+.property-card {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.9rem;
+  background: #fff;
+}
+
+.property-card h3 {
+  margin: 0 0 0.45rem;
+  font-size: 1rem;
+}
+
+.property-meta {
+  color: var(--text-light);
+  font-size: 0.88rem;
+  margin: 0.2rem 0;
 }
 
 .table-wrapper {
@@ -316,6 +426,10 @@ footer a:hover {
         flex-direction: column;
     }
 
+    .stats {
+      grid-template-columns: 1fr;
+    }
+
     th, td {
         padding: 0.75rem;
         font-size: 0.9rem;
@@ -323,6 +437,14 @@ footer a:hover {
 
     .content {
         padding: 1rem;
+    }
+
+    .table-wrapper {
+      display: none;
+    }
+
+    .mobile-cards {
+      display: grid;
     }
 }
 </style>
@@ -358,17 +480,42 @@ footer a:hover {
   <p>Properties that have been rented out</p>
 </div>
 <div class="container">
+  <div class="stats">
+    <article class="stat-card">
+      <div class="stat-label">Taken Listings</div>
+      <div class="stat-value"><?= (int) $taken_count ?></div>
+    </article>
+    <article class="stat-card">
+      <div class="stat-label">Average Rent Value</div>
+      <div class="stat-value">$<?= number_format($avg_price, 2) ?></div>
+    </article>
+    <article class="stat-card">
+      <div class="stat-label">Latest Taken Date</div>
+      <div class="stat-value"><?= $latest_taken ? date('M d, Y', $latest_taken) : 'N/A' ?></div>
+    </article>
+  </div>
+
   <div class="content">
+    <div class="taken-note">
+      <i class="fas fa-house-circle-check"></i>
+      These listings are occupied. Use bookings and income pages to track tenant status and cash flow.
+    </div>
+
+    <div class="search-meta">Search and review occupied properties quickly.</div>
     <div class="search-bar">
       <form method="GET">
         <input type="text" name="search" placeholder="Search by title or location..." value="<?= htmlspecialchars($search) ?>">
         <button type="submit"><i class="fas fa-search"></i> Search</button>
       </form>
-      <?php if ($search): ?>
-        <a href="taken_properties.php" style="padding: 0.75rem 1.5rem; background: var(--border-color); color: var(--text-dark); border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem;">
-          <i class="fas fa-times"></i> Clear
-        </a>
-      <?php endif; ?>
+      <div class="toolbar-actions">
+        <?php if ($search): ?>
+          <a href="taken_properties.php" style="background: var(--border-color); color: var(--text-dark);">
+            <i class="fas fa-times"></i> Clear
+          </a>
+        <?php endif; ?>
+        <a href="manage_bookings.php" class="btn-bookings"><i class="fas fa-calendar-check"></i> Manage Bookings</a>
+        <a href="landlord_income.php" class="btn-income"><i class="fas fa-chart-line"></i> Income</a>
+      </div>
     </div>
 
     <?php if(!empty($result)): ?>
@@ -391,14 +538,27 @@ footer a:hover {
             <td><strong><?= htmlspecialchars($row['title']) ?></strong></td>
             <td><?= htmlspecialchars($row['location']) ?></td>
             <td><strong>$<?= number_format($row['price'], 2) ?></strong></td>
-            <td><?= $row['bedrooms'] ?></td>
-            <td><?= $row['bathrooms'] ?></td>
-            <td><?= format_date($row['created_at']) ?></td>
+            <td><?= (int) $row['bedrooms'] ?></td>
+            <td><?= (int) $row['bathrooms'] ?></td>
+            <td><?= format_date((string) $row['created_at']) ?></td>
             <td><span class="status-badge">Taken</span></td>
           </tr>
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
+
+    <div class="mobile-cards">
+      <?php foreach($result as $row): ?>
+      <article class="property-card">
+        <h3><?= htmlspecialchars($row['title']) ?></h3>
+        <p class="property-meta"><i class="fas fa-location-dot"></i> <?= htmlspecialchars($row['location']) ?></p>
+        <p class="property-meta"><i class="fas fa-dollar-sign"></i> $<?= number_format($row['price'], 2) ?></p>
+        <p class="property-meta"><i class="fas fa-bed"></i> <?= (int) $row['bedrooms'] ?> bed | <i class="fas fa-bath"></i> <?= (int) $row['bathrooms'] ?> bath</p>
+        <p class="property-meta"><i class="fas fa-calendar"></i> Since <?= format_date((string) $row['created_at']) ?></p>
+        <p class="property-meta"><span class="status-badge">Taken</span></p>
+      </article>
+      <?php endforeach; ?>
     </div>
     <?php else: ?>
     <div class="empty-state">

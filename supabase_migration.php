@@ -71,7 +71,7 @@ function rc_mig_get_property_by_id($conn, int $propertyId, bool $approvedOnly = 
 
     if (rc_mig_supabase_should_try()) {
         $query = [
-            'select' => 'id,title,location,price,bedrooms,bathrooms,description,created_at,photo,owner_id,landlord_id,booking_status,status,users!owner_id(name,email)',
+            'select' => 'id,title,location,price,bedrooms,bathrooms,description,created_at,image,owner_id,landlord_id,status',
             'id' => 'eq.' . $propertyId,
             'limit' => '1',
         ];
@@ -81,31 +81,52 @@ function rc_mig_get_property_by_id($conn, int $propertyId, bool $approvedOnly = 
         $res = rc_mig_supabase_request('GET', 'properties', $query);
         if ($res['ok'] && !empty($res['data'][0])) {
             $row = $res['data'][0];
-            $row['owner_name'] = (string) ($row['users']['name'] ?? '');
-            $row['owner_email'] = (string) ($row['users']['email'] ?? '');
+            $ownerId = (int) (($row['owner_id'] ?? 0) ?: ($row['landlord_id'] ?? 0));
+            $owner = $ownerId > 0 ? rc_mig_get_user_by_id($conn, $ownerId) : null;
+            $row['owner_name'] = (string) ($owner['name'] ?? '');
+            $row['owner_email'] = (string) ($owner['email'] ?? '');
             $row['landlord_name'] = $row['owner_name'];
             $row['landlord_email'] = $row['owner_email'];
+            if (!isset($row['photo']) && isset($row['image'])) {
+                $row['photo'] = (string) $row['image'];
+            }
+            if (!isset($row['booking_status'])) {
+                $row['booking_status'] = 'available';
+            }
             return $row;
         }
     }
 
-    $sql = "SELECT p.*, u.name AS owner_name, u.email AS owner_email, u.name AS landlord_name, u.email AS landlord_email
-            FROM properties p
-            JOIN users u ON p.owner_id = u.id
-            WHERE p.id = ?";
+    $sqlPrimary = "SELECT p.*, u.name AS owner_name, u.email AS owner_email, u.name AS landlord_name, u.email AS landlord_email
+                   FROM properties p
+                   LEFT JOIN users u ON u.id = COALESCE(NULLIF(p.owner_id, 0), NULLIF(p.landlord_id, 0))
+                   WHERE p.id = ?";
     if ($approvedOnly) {
-        $sql .= " AND p.status = 'approved'";
+        $sqlPrimary .= " AND p.status = 'approved'";
     }
 
-    $stmt = $conn->prepare($sql);
+    $stmt = $conn->prepare($sqlPrimary);
     if (!$stmt) {
-        return null;
+        $sqlFallback = "SELECT p.*, u.name AS owner_name, u.email AS owner_email, u.name AS landlord_name, u.email AS landlord_email
+                        FROM properties p
+                        LEFT JOIN users u ON p.landlord_id = u.id
+                        WHERE p.id = ?";
+        if ($approvedOnly) {
+            $sqlFallback .= " AND p.status = 'approved'";
+        }
+        $stmt = $conn->prepare($sqlFallback);
+        if (!$stmt) {
+            return null;
+        }
     }
 
     $stmt->bind_param('i', $propertyId);
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc() ?: null;
     $stmt->close();
+    if ($row && !isset($row['booking_status'])) {
+        $row['booking_status'] = 'available';
+    }
     return $row;
 }
 
@@ -448,30 +469,194 @@ function rc_mig_update_property_for_landlord($conn, int $propertyId, int $landlo
 }
 
 function rc_mig_get_landlord_requests_grouped($conn, int $landlordId): array {
-    $stmt = $conn->prepare(
-        "SELECT
-            p.id AS property_id,
-            p.title AS property_title,
-            p.price,
-            p.location,
-            GROUP_CONCAT(CONCAT(u.name,'|',u.id,'|',r.status,'|',r.id) SEPARATOR '||') AS renters
-        FROM properties p
-        JOIN requests r ON r.property_id = p.id
-        JOIN users u ON r.user_id = u.id
-        WHERE (p.owner_id = ? OR p.landlord_id = ?)
-        GROUP BY p.id
-        ORDER BY p.id DESC"
-    );
-
-    if (!$stmt) {
+    if ($landlordId <= 0) {
         return [];
     }
 
-    $stmt->bind_param('ii', $landlordId, $landlordId);
-    $stmt->execute();
-    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-    $stmt->close();
-    return $rows;
+    $grouped = [];
+
+    if (rc_mig_supabase_should_try()) {
+        $propRes = rc_mig_supabase_request('GET', 'properties', [
+            'select' => 'id,title,price,location,owner_id,landlord_id',
+            'or' => '(owner_id.eq.' . $landlordId . ',landlord_id.eq.' . $landlordId . ')',
+            'order' => 'id.desc',
+            'limit' => '2000',
+        ]);
+
+        if (empty($propRes['ok']) || !is_array($propRes['data']) || empty($propRes['data'])) {
+            return [];
+        }
+
+        $propertyMap = [];
+        $propertyIds = [];
+        foreach ($propRes['data'] as $property) {
+            $propertyId = (int) ($property['id'] ?? 0);
+            if ($propertyId <= 0) {
+                continue;
+            }
+            $propertyIds[$propertyId] = true;
+            $propertyMap[$propertyId] = [
+                'property_id' => $propertyId,
+                'property_title' => (string) ($property['title'] ?? 'Property'),
+                'price' => (float) ($property['price'] ?? 0),
+                'location' => (string) ($property['location'] ?? ''),
+                'renters_list' => [],
+            ];
+        }
+
+        if (empty($propertyIds)) {
+            return [];
+        }
+
+        $requestRes = rc_mig_supabase_request('GET', 'requests', [
+            'select' => 'id,status,created_at,user_id,property_id',
+            'property_id' => 'in.(' . implode(',', array_keys($propertyIds)) . ')',
+            'order' => 'created_at.desc',
+            'limit' => '5000',
+        ]);
+
+        if (empty($requestRes['ok']) || !is_array($requestRes['data']) || empty($requestRes['data'])) {
+            return array_values($propertyMap);
+        }
+
+        $userIds = [];
+        foreach ($requestRes['data'] as $request) {
+            $uid = (int) ($request['user_id'] ?? 0);
+            if ($uid > 0) {
+                $userIds[$uid] = true;
+            }
+        }
+
+        $userMap = [];
+        if (!empty($userIds)) {
+            $usersRes = rc_mig_supabase_request('GET', 'users', [
+                'select' => 'id,name,email,phone,avatar_url',
+                'id' => 'in.(' . implode(',', array_keys($userIds)) . ')',
+                'limit' => (string) count($userIds),
+            ]);
+
+            if (!empty($usersRes['ok']) && is_array($usersRes['data'])) {
+                foreach ($usersRes['data'] as $user) {
+                    $uid = (int) ($user['id'] ?? 0);
+                    if ($uid <= 0) {
+                        continue;
+                    }
+                    $userMap[$uid] = [
+                        'name' => (string) ($user['name'] ?? 'Renter'),
+                        'email' => (string) ($user['email'] ?? ''),
+                        'phone' => (string) ($user['phone'] ?? ''),
+                        'profile_pic' => (string) ($user['avatar_url'] ?? ''),
+                    ];
+                }
+            }
+        }
+
+        foreach ($requestRes['data'] as $request) {
+            $propertyId = (int) ($request['property_id'] ?? 0);
+            $renterId = (int) ($request['user_id'] ?? 0);
+            if ($propertyId <= 0 || !isset($propertyMap[$propertyId])) {
+                continue;
+            }
+
+            $profile = $userMap[$renterId] ?? ['name' => 'Renter', 'email' => '', 'phone' => '', 'profile_pic' => ''];
+            $propertyMap[$propertyId]['renters_list'][] = [
+                'name' => $profile['name'],
+                'id' => $renterId,
+                'status' => (string) ($request['status'] ?? 'pending'),
+                'request_id' => (int) ($request['id'] ?? 0),
+                'email' => $profile['email'],
+                'phone' => $profile['phone'],
+                'profile_pic' => $profile['profile_pic'],
+                'requested_at' => (string) ($request['created_at'] ?? ''),
+            ];
+        }
+
+        $grouped = array_values($propertyMap);
+    } else {
+        $stmt = $conn->prepare(
+            "SELECT
+                p.id AS property_id,
+                p.title AS property_title,
+                p.price,
+                p.location,
+                r.id AS request_id,
+                r.status,
+                r.created_at,
+                u.id AS renter_id,
+                u.name AS renter_name,
+                u.email AS renter_email,
+                u.phone AS renter_phone,
+                u.profile_pic,
+                u.avatar_url
+            FROM properties p
+            JOIN requests r ON r.property_id = p.id
+            JOIN users u ON r.user_id = u.id
+            WHERE (p.owner_id = ? OR p.landlord_id = ?)
+            ORDER BY p.id DESC, r.created_at DESC"
+        );
+
+        if (!$stmt) {
+            return [];
+        }
+
+        $stmt->bind_param('ii', $landlordId, $landlordId);
+        $stmt->execute();
+        $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt->close();
+
+        foreach ($rows as $row) {
+            $propertyId = (int) ($row['property_id'] ?? 0);
+            if ($propertyId <= 0) {
+                continue;
+            }
+
+            if (!isset($grouped[$propertyId])) {
+                $grouped[$propertyId] = [
+                    'property_id' => $propertyId,
+                    'property_title' => (string) ($row['property_title'] ?? 'Property'),
+                    'price' => (float) ($row['price'] ?? 0),
+                    'location' => (string) ($row['location'] ?? ''),
+                    'renters_list' => [],
+                ];
+            }
+
+            $grouped[$propertyId]['renters_list'][] = [
+                'name' => (string) ($row['renter_name'] ?? 'Renter'),
+                'id' => (int) ($row['renter_id'] ?? 0),
+                'status' => (string) ($row['status'] ?? 'pending'),
+                'request_id' => (int) ($row['request_id'] ?? 0),
+                'email' => (string) ($row['renter_email'] ?? ''),
+                'phone' => (string) ($row['renter_phone'] ?? ''),
+                'profile_pic' => (string) (($row['profile_pic'] ?? '') ?: ($row['avatar_url'] ?? '')),
+                'requested_at' => (string) ($row['created_at'] ?? ''),
+            ];
+        }
+
+        $grouped = array_values($grouped);
+    }
+
+    foreach ($grouped as &$row) {
+        $parts = [];
+        foreach ((array) ($row['renters_list'] ?? []) as $renter) {
+            $safeName = str_replace(['|', '||'], ['/', '/'], (string) ($renter['name'] ?? ''));
+            $safeEmail = str_replace(['|', '||'], ['/', '/'], (string) ($renter['email'] ?? ''));
+            $safePhone = str_replace(['|', '||'], ['/', '/'], (string) ($renter['phone'] ?? ''));
+            $safePic = str_replace(['|', '||'], ['/', '/'], (string) ($renter['profile_pic'] ?? ''));
+            $parts[] = implode('|', [
+                $safeName,
+                (int) ($renter['id'] ?? 0),
+                (string) ($renter['status'] ?? 'pending'),
+                (int) ($renter['request_id'] ?? 0),
+                $safeEmail,
+                $safePhone,
+                $safePic,
+            ]);
+        }
+        $row['renters'] = implode('||', $parts);
+    }
+    unset($row);
+
+    return $grouped;
 }
 
 function rc_mig_update_request_status_for_landlord($conn, int $requestId, int $landlordId, string $status): bool {
@@ -668,6 +853,120 @@ function rc_mig_get_user_by_id($conn, int $userId): ?array {
     $row = $stmt->get_result()->fetch_assoc() ?: null;
     $stmt->close();
     return $row;
+}
+
+function rc_mig_get_user_profile($conn, int $userId): ?array {
+    if ($userId <= 0) {
+        return null;
+    }
+
+    if (rc_mig_supabase_should_try()) {
+        $res = rc_mig_supabase_request('GET', 'users', [
+            'select' => 'id,name,email,phone,role,avatar_url',
+            'id' => 'eq.' . $userId,
+            'limit' => '1',
+        ]);
+
+        if (!empty($res['ok']) && !empty($res['data'][0])) {
+            $row = $res['data'][0];
+            $row['profile_pic'] = (string) ($row['avatar_url'] ?? '');
+            return $row;
+        }
+
+        return null;
+    }
+
+    $stmt = $conn->prepare('SELECT * FROM users WHERE id = ? LIMIT 1');
+    if (!$stmt) {
+        return null;
+    }
+
+    $stmt->bind_param('i', $userId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc() ?: null;
+    $stmt->close();
+
+    if (!$row) {
+        return null;
+    }
+
+    if (!isset($row['profile_pic'])) {
+        $row['profile_pic'] = (string) ($row['avatar_url'] ?? '');
+    }
+
+    return $row;
+}
+
+function rc_mig_update_user_profile($conn, int $userId, array $fields): array {
+    if ($userId <= 0) {
+        return ['ok' => false, 'error' => 'Invalid user'];
+    }
+
+    $name = trim((string) ($fields['name'] ?? ''));
+    $phone = trim((string) ($fields['phone'] ?? ''));
+    $profilePic = trim((string) ($fields['profile_pic'] ?? ''));
+
+    if ($name === '') {
+        return ['ok' => false, 'error' => 'Name is required'];
+    }
+
+    if ($phone !== '' && !preg_match('/^[0-9+()\-\s]{7,25}$/', $phone)) {
+        return ['ok' => false, 'error' => 'Phone format is invalid'];
+    }
+
+    if (rc_mig_supabase_should_try()) {
+        $payload = [
+            'name' => $name,
+            'phone' => $phone === '' ? null : $phone,
+            'updated_at' => gmdate('c'),
+        ];
+
+        if ($profilePic !== '') {
+            $payload['avatar_url'] = $profilePic;
+        }
+
+        $res = rc_mig_supabase_request('PATCH', 'users', [
+            'id' => 'eq.' . $userId,
+        ], $payload);
+
+        if (!empty($res['ok'])) {
+            return ['ok' => true];
+        }
+
+        return ['ok' => false, 'error' => (string) ($res['error'] ?? $res['raw'] ?? 'Failed to update profile')];
+    }
+
+    $stmt = $conn->prepare('UPDATE users SET name = ?, phone = ? WHERE id = ?');
+    if (!$stmt) {
+        return ['ok' => false, 'error' => 'Failed to prepare profile update'];
+    }
+
+    $stmt->bind_param('ssi', $name, $phone, $userId);
+    $ok = $stmt->execute();
+    $error = (string) ($stmt->error ?? 'Failed to update profile');
+    $stmt->close();
+
+    if (!$ok) {
+        return ['ok' => false, 'error' => $error];
+    }
+
+    if ($profilePic !== '') {
+        $stmt2 = $conn->prepare('UPDATE users SET profile_pic = ? WHERE id = ?');
+        if ($stmt2) {
+            $stmt2->bind_param('si', $profilePic, $userId);
+            $stmt2->execute();
+            $stmt2->close();
+        }
+
+        $stmt3 = $conn->prepare('UPDATE users SET avatar_url = ? WHERE id = ?');
+        if ($stmt3) {
+            $stmt3->bind_param('si', $profilePic, $userId);
+            $stmt3->execute();
+            $stmt3->close();
+        }
+    }
+
+    return ['ok' => true];
 }
 
 function rc_mig_can_access_chat($conn, int $actorId, string $actorRole, int $propertyId, int $withUserId): bool {
@@ -1472,8 +1771,52 @@ function rc_mig_cancel_pending_request($conn, int $requestId, int $renterId): bo
 }
 
 function rc_mig_search_approved_properties($conn, string $search): array {
-    $searchTerm = '%' . trim($search) . '%';
-    $stmt = $conn->prepare("SELECT * FROM properties WHERE status = 'approved' AND (title LIKE ? OR location LIKE ? OR CAST(price AS CHAR) LIKE ?) ORDER BY created_at DESC");
+    $search = trim($search);
+
+    if (rc_mig_supabase_should_try()) {
+        $query = [
+            'select' => 'id,title,location,price,description,bedrooms,bathrooms,owner_id,landlord_id,status,booking_status,created_at',
+            'status' => 'eq.approved',
+            'order' => 'created_at.desc',
+            'limit' => '300',
+        ];
+
+        $res = rc_mig_supabase_request('GET', 'properties', $query);
+        if (empty($res['ok']) || !is_array($res['data'])) {
+            return [];
+        }
+
+        $rows = $res['data'];
+        if ($search !== '') {
+            $needle = strtolower($search);
+            $rows = array_values(array_filter($rows, static function (array $row) use ($needle): bool {
+                $title = strtolower((string) ($row['title'] ?? ''));
+                $location = strtolower((string) ($row['location'] ?? ''));
+                $price = strtolower((string) ($row['price'] ?? ''));
+                return strpos($title, $needle) !== false
+                    || strpos($location, $needle) !== false
+                    || strpos($price, $needle) !== false;
+            }));
+        }
+
+        foreach ($rows as &$row) {
+            $ownerId = (int) (($row['owner_id'] ?? 0) ?: ($row['landlord_id'] ?? 0));
+            $owner = $ownerId > 0 ? rc_mig_get_user_by_id($conn, $ownerId) : null;
+            $row['landlord_name'] = (string) ($owner['name'] ?? '');
+            $row['landlord_email'] = (string) ($owner['email'] ?? '');
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    $searchTerm = '%' . $search . '%';
+    $stmt = $conn->prepare("SELECT p.*, u.name AS landlord_name, u.email AS landlord_email
+                            FROM properties p
+                            LEFT JOIN users u ON p.owner_id = u.id
+                            WHERE p.status = 'approved'
+                              AND (p.title LIKE ? OR p.location LIKE ? OR CAST(p.price AS CHAR) LIKE ?)
+                            ORDER BY p.created_at DESC");
     if (!$stmt) {
         return [];
     }
@@ -1486,6 +1829,98 @@ function rc_mig_search_approved_properties($conn, string $search): array {
 }
 
 function rc_mig_get_renter_requests($conn, int $renterId): array {
+    if ($renterId <= 0) {
+        return [];
+    }
+
+    if (rc_mig_supabase_should_try()) {
+        $reqRes = rc_mig_supabase_request('GET', 'requests', [
+            'select' => 'id,status,created_at,property_id',
+            'user_id' => 'eq.' . $renterId,
+            'order' => 'created_at.desc',
+            'limit' => '500',
+        ]);
+
+        if (empty($reqRes['ok']) || !is_array($reqRes['data']) || empty($reqRes['data'])) {
+            return [];
+        }
+
+        $propertyIds = [];
+        foreach ($reqRes['data'] as $req) {
+            $pid = (int) ($req['property_id'] ?? 0);
+            if ($pid > 0) {
+                $propertyIds[$pid] = true;
+            }
+        }
+
+        if (empty($propertyIds)) {
+            return [];
+        }
+
+        $propRes = rc_mig_supabase_request('GET', 'properties', [
+            'select' => 'id,title,price,location,owner_id,landlord_id',
+            'id' => 'in.(' . implode(',', array_keys($propertyIds)) . ')',
+            'limit' => (string) count($propertyIds),
+        ]);
+
+        $propertyMap = [];
+        if (!empty($propRes['ok']) && is_array($propRes['data'])) {
+            foreach ($propRes['data'] as $property) {
+                $propertyMap[(int) ($property['id'] ?? 0)] = $property;
+            }
+        }
+
+        $ownerIds = [];
+        foreach ($propertyMap as $property) {
+            $ownerId = (int) (($property['owner_id'] ?? 0) ?: ($property['landlord_id'] ?? 0));
+            if ($ownerId > 0) {
+                $ownerIds[$ownerId] = true;
+            }
+        }
+
+        $ownerMap = [];
+        if (!empty($ownerIds)) {
+            $ownersRes = rc_mig_supabase_request('GET', 'users', [
+                'select' => 'id,name,email',
+                'id' => 'in.(' . implode(',', array_keys($ownerIds)) . ')',
+                'limit' => (string) count($ownerIds),
+            ]);
+
+            if (!empty($ownersRes['ok']) && is_array($ownersRes['data'])) {
+                foreach ($ownersRes['data'] as $owner) {
+                    $ownerMap[(int) ($owner['id'] ?? 0)] = $owner;
+                }
+            }
+        }
+
+        $rows = [];
+        foreach ($reqRes['data'] as $req) {
+            $propertyId = (int) ($req['property_id'] ?? 0);
+            if (!isset($propertyMap[$propertyId])) {
+                continue;
+            }
+
+            $property = $propertyMap[$propertyId];
+            $ownerId = (int) (($property['owner_id'] ?? 0) ?: ($property['landlord_id'] ?? 0));
+            $owner = $ownerMap[$ownerId] ?? [];
+
+            $rows[] = [
+                'request_id' => (int) ($req['id'] ?? 0),
+                'status' => (string) ($req['status'] ?? 'pending'),
+                'created_at' => (string) ($req['created_at'] ?? ''),
+                'property_id' => $propertyId,
+                'title' => (string) ($property['title'] ?? 'Property'),
+                'price' => (float) ($property['price'] ?? 0),
+                'location' => (string) ($property['location'] ?? ''),
+                'landlord_id' => $ownerId,
+                'landlord_name' => (string) ($owner['name'] ?? ''),
+                'landlord_email' => (string) ($owner['email'] ?? ''),
+            ];
+        }
+
+        return $rows;
+    }
+
     $stmt = $conn->prepare(
         "SELECT r.id AS request_id, r.status, r.created_at,
                 p.id AS property_id, p.title, p.price, p.location,

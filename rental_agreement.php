@@ -48,6 +48,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = "Move-out date must be after move-in date.";
     } else {
         $landlord_id = $property['landlord_id'] ?? $property['owner_id'];
+
+      // Re-check availability at submit time to prevent race conditions and duplicate active bookings.
+      $availabilityStmt = $conn->prepare(
+        "SELECT p.booking_status,
+            (SELECT COUNT(*) FROM bookings b WHERE b.property_id = p.id AND b.status = 'active') AS active_booking_count,
+            (SELECT COUNT(*) FROM bookings rb WHERE rb.property_id = p.id AND rb.renter_id = ? AND rb.status = 'active') AS renter_active_count
+         FROM properties p
+         WHERE p.id = ?
+         LIMIT 1"
+      );
+      $availabilityStmt->bind_param("ii", $renter_id, $property_id);
+      $availabilityStmt->execute();
+      $availability = $availabilityStmt->get_result()->fetch_assoc();
+
+      $bookingStatus = strtolower((string) ($availability['booking_status'] ?? 'available'));
+      $activeCount = (int) ($availability['active_booking_count'] ?? 0);
+      $renterActiveCount = (int) ($availability['renter_active_count'] ?? 0);
+
+      if (in_array($bookingStatus, ['booked', 'taken', 'maintenance'], true) || $activeCount > 0) {
+        $error = "This property is no longer available for booking.";
+      } elseif ($renterActiveCount > 0) {
+        $error = "You already have an active booking for this property.";
+      }
+
+      if ($error !== '') {
+        // Stop before transaction when property cannot be booked.
+      } else {
         
         // Start transaction
         $conn->begin_transaction();
@@ -121,6 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) {
             $conn->rollback();
             $error = $e->getMessage();
+        }
         }
     }
 }

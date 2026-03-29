@@ -1,6 +1,7 @@
 <?php
 session_start();
 include "app_init.php";
+include "email_notifications.php";
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
@@ -16,45 +17,107 @@ $back_url = ($role === 'landlord') ? 'landlord_dashboard.php' : 'renter_dashboar
 // Handle booking cancellation
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'cancel') {
     $booking_id = intval($_POST['booking_id'] ?? 0);
-    $reason = $_POST['cancellation_reason'] ?? '';
-    
-    // Verify ownership
+  $reason = trim((string) ($_POST['cancellation_reason'] ?? ''));
+
+  if ($booking_id <= 0) {
+    $error = "Invalid booking selected";
+  } elseif ($reason === '') {
+    $error = "Please provide a cancellation reason";
+  }
+  if ($error === '') {
+    // Verify ownership and fetch details for notifications
     if ($role === 'renter') {
-        $check = $conn->prepare("SELECT property_id, landlord_id FROM bookings WHERE id = ? AND renter_id = ? AND status = 'active'");
-        $check->bind_param("ii", $booking_id, $user_id);
+      $check = $conn->prepare(
+        "SELECT b.property_id, p.title,
+            ru.name AS renter_name, ru.email AS renter_email,
+            lu.name AS landlord_name, lu.email AS landlord_email
+         FROM bookings b
+         JOIN properties p ON b.property_id = p.id
+         JOIN users ru ON b.renter_id = ru.id
+         JOIN users lu ON b.landlord_id = lu.id
+         WHERE b.id = ? AND b.renter_id = ? AND b.status = 'active'"
+      );
+      $check->bind_param("ii", $booking_id, $user_id);
     } else {
-        $check = $conn->prepare("SELECT property_id FROM bookings WHERE id = ? AND landlord_id = ? AND status = 'active'");
-        $check->bind_param("ii", $booking_id, $user_id);
+      $check = $conn->prepare(
+        "SELECT b.property_id, p.title,
+            ru.name AS renter_name, ru.email AS renter_email,
+            lu.name AS landlord_name, lu.email AS landlord_email
+         FROM bookings b
+         JOIN properties p ON b.property_id = p.id
+         JOIN users ru ON b.renter_id = ru.id
+         JOIN users lu ON b.landlord_id = lu.id
+         WHERE b.id = ? AND b.landlord_id = ? AND b.status = 'active'"
+      );
+      $check->bind_param("ii", $booking_id, $user_id);
     }
-    
+
     $check->execute();
     $result = $check->get_result();
-    
+
     if ($result->num_rows > 0) {
-        $booking_data = $result->fetch_assoc();
-        $property_id = $booking_data['property_id'];
-        
-        // Update booking status
-        $stmt = $conn->prepare("
-            UPDATE bookings 
-            SET status = 'cancelled', cancelled_by = ?, cancellation_reason = ?, cancelled_at = NOW()
-            WHERE id = ?
-        ");
-        $cancelled_by = ($role === 'renter') ? 'renter' : 'landlord';
-        $stmt->bind_param("ssi", $cancelled_by, $reason, $booking_id);
-        
-        if ($stmt->execute()) {
-            // Update property booking status back to available
-          if (rc_mig_set_property_booking_status($conn, (int) $property_id, 'available')) {
-            $message = "✓ Booking cancelled successfully. Property is now available.";
-          } else {
-            $message = "✓ Booking cancelled, but property availability update is pending.";
-          }
-        } else {
-            $error = "Failed to cancel booking";
+      $booking_data = $result->fetch_assoc();
+      $property_id = (int) ($booking_data['property_id'] ?? 0);
+      $cancelled_by = ($role === 'renter') ? 'renter' : 'landlord';
+
+      $conn->begin_transaction();
+      try {
+        // Baseline status update for schema compatibility.
+        $stmt = $conn->prepare("UPDATE bookings SET status = 'cancelled' WHERE id = ?");
+        if (!$stmt) {
+          throw new Exception('Could not prepare booking cancellation.');
         }
+        $stmt->bind_param("i", $booking_id);
+        if (!$stmt->execute()) {
+          throw new Exception('Failed to cancel booking.');
+        }
+
+        // Enrich cancellation metadata when columns exist.
+        $metaStmt = $conn->prepare("UPDATE bookings SET cancelled_by = ?, cancellation_reason = ?, cancelled_at = NOW() WHERE id = ?");
+        if ($metaStmt) {
+          $metaStmt->bind_param("ssi", $cancelled_by, $reason, $booking_id);
+          $metaStmt->execute();
+        }
+
+        // Mark property available only when no other active booking exists.
+        $activeCheck = $conn->prepare("SELECT COUNT(*) AS c FROM bookings WHERE property_id = ? AND status = 'active' AND id <> ?");
+        $hasOtherActive = false;
+        if ($activeCheck) {
+          $activeCheck->bind_param("ii", $property_id, $booking_id);
+          $activeCheck->execute();
+          $activeRow = $activeCheck->get_result()->fetch_assoc();
+          $hasOtherActive = ((int) ($activeRow['c'] ?? 0)) > 0;
+        }
+
+        if (!$hasOtherActive) {
+          rc_mig_set_property_booking_status($conn, $property_id, 'available');
+        }
+
+        $conn->commit();
+        $message = "✓ Booking cancelled successfully.";
+
+        @send_booking_cancellation_landlord(
+          (string) ($booking_data['landlord_email'] ?? ''),
+          (string) ($booking_data['landlord_name'] ?? 'Landlord'),
+          (string) ($booking_data['title'] ?? 'Property'),
+          (string) ($booking_data['renter_name'] ?? 'Renter'),
+          $cancelled_by,
+          $reason
+        );
+        @send_booking_cancellation_renter(
+          (string) ($booking_data['renter_email'] ?? ''),
+          (string) ($booking_data['renter_name'] ?? 'Renter'),
+          (string) ($booking_data['title'] ?? 'Property'),
+          (string) ($booking_data['landlord_name'] ?? 'Landlord'),
+          $reason
+        );
+      } catch (Exception $e) {
+        $conn->rollback();
+        $error = $e->getMessage();
+      }
     } else {
-        $error = "Booking not found or you don't have permission to cancel it";
+      $error = "Booking not found or you don't have permission to cancel it";
+    }
     }
 }
 
@@ -94,9 +157,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 if ($role === 'landlord') {
     $sql = "
     SELECT 
-        b.id, b.property_id, b.renter_id, b.move_in_date, b.monthly_rent, b.status,
+        b.id, b.property_id, b.renter_id, b.move_in_date, b.monthly_rent, b.status, b.cancelled_by, b.cancellation_reason, b.cancelled_at,
         p.title, p.location,
-        u.name AS renter_name, u.email AS renter_email,
+      u.name AS renter_name, u.email AS renter_email, u.phone AS renter_phone, u.profile_pic AS renter_profile_pic,
         (SELECT COUNT(*) FROM payments WHERE booking_id = b.id AND status = 'pending') AS pending_payments,
         (SELECT COUNT(*) FROM payments WHERE booking_id = b.id AND status = 'approved') AS approved_payments
     FROM bookings b
@@ -110,7 +173,7 @@ if ($role === 'landlord') {
 } else {
     $sql = "
     SELECT 
-        b.id, b.property_id, b.landlord_id, b.move_in_date, b.monthly_rent, b.status,
+      b.id, b.property_id, b.landlord_id, b.move_in_date, b.monthly_rent, b.status, b.cancelled_by, b.cancellation_reason, b.cancelled_at,
         p.title, p.location,
         u.name AS landlord_name, u.email AS landlord_email,
         (SELECT COUNT(*) FROM payments WHERE booking_id = b.id AND status = 'pending') AS pending_payments,
@@ -392,13 +455,22 @@ body {
           
           <?php if ($role === 'landlord'): ?>
             <div class="booking-detail">
-              <i class="fas fa-user"></i>
-              <span><?php echo htmlspecialchars($booking['renter_name']); ?></span>
+              <i class="fas fa-id-badge"></i>
+              <span>
+                <img src="<?php echo htmlspecialchars((string) ($booking['renter_profile_pic'] ?: 'images/default-avatar.png')); ?>" alt="Renter" style="width:24px;height:24px;border-radius:999px;vertical-align:middle;object-fit:cover;margin-right:8px;border:1px solid rgba(31,36,48,0.12);">
+                <?php echo htmlspecialchars($booking['renter_name']); ?>
+              </span>
             </div>
             <div class="booking-detail">
               <i class="fas fa-envelope"></i>
               <span><?php echo htmlspecialchars($booking['renter_email']); ?></span>
             </div>
+            <?php if (!empty($booking['renter_phone'])): ?>
+              <div class="booking-detail">
+                <i class="fas fa-phone"></i>
+                <span><?php echo htmlspecialchars($booking['renter_phone']); ?></span>
+              </div>
+            <?php endif; ?>
           <?php else: ?>
             <div class="booking-detail">
               <i class="fas fa-user-tie"></i>
@@ -437,6 +509,27 @@ body {
               </button>
             <?php endif; ?>
           </div>
+
+          <?php if ($booking['status'] === 'cancelled'): ?>
+            <?php if (!empty($booking['cancelled_by'])): ?>
+              <div class="booking-detail">
+                <i class="fas fa-user-slash"></i>
+                <span>Cancelled by: <?php echo htmlspecialchars((string) ucfirst((string) $booking['cancelled_by'])); ?></span>
+              </div>
+            <?php endif; ?>
+            <?php if (!empty($booking['cancelled_at'])): ?>
+              <div class="booking-detail">
+                <i class="fas fa-clock"></i>
+                <span>Cancelled on: <?php echo date('M d, Y', strtotime((string) $booking['cancelled_at'])); ?></span>
+              </div>
+            <?php endif; ?>
+            <?php if (!empty($booking['cancellation_reason'])): ?>
+              <div class="booking-detail">
+                <i class="fas fa-comment-dots"></i>
+                <span>Reason: <?php echo htmlspecialchars((string) $booking['cancellation_reason']); ?></span>
+              </div>
+            <?php endif; ?>
+          <?php endif; ?>
         </div>
       <?php endwhile; ?>
     </div>

@@ -19,27 +19,97 @@ if (!$property) {
     die("Property not found.");
 }
 
+$extract_meta = static function (string $description, string $label): string {
+    $pattern = '/^\s*' . preg_quote($label, '/') . ':\s*(.+)$/mi';
+    if (preg_match($pattern, $description, $matches)) {
+        return trim((string) ($matches[1] ?? ''));
+    }
+    return '';
+};
+
+$strip_meta = static function (string $description): string {
+    $clean = preg_replace('/^\s*(Address|Purpose|Available From|Amenities):.*$/mi', '', $description) ?? $description;
+    $clean = preg_replace("/\n{3,}/", "\n\n", $clean) ?? $clean;
+    return trim($clean);
+};
+
+$existing_description = (string) ($property['description'] ?? '');
+$form = [
+    'title' => (string) ($property['title'] ?? ''),
+    'location' => (string) ($property['location'] ?? ''),
+    'address' => $extract_meta($existing_description, 'Address'),
+    'price' => (string) ($property['price'] ?? ''),
+    'purpose' => strtolower($extract_meta($existing_description, 'Purpose') ?: 'rent'),
+    'contact' => (string) ($property['contact'] ?? ''),
+    'bedrooms' => (string) ($property['bedrooms'] ?? '0'),
+    'bathrooms' => (string) ($property['bathrooms'] ?? '0'),
+    'available_from' => $extract_meta($existing_description, 'Available From'),
+    'amenities' => $extract_meta($existing_description, 'Amenities'),
+    'description' => $strip_meta($existing_description),
+];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    foreach ($form as $key => $value) {
+        if (isset($_POST[$key])) {
+            $form[$key] = trim((string) $_POST[$key]);
+        }
+    }
+}
+
 // Handle update
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $title = trim((string) ($_POST['title'] ?? ''));
-  $location = trim((string) ($_POST['location'] ?? ''));
-  $price = (float) ($_POST['price'] ?? 0);
-  $contact = trim((string) ($_POST['contact'] ?? ''));
-  $bedrooms = (int) ($_POST['bedrooms'] ?? 0);
-  $bathrooms = (int) ($_POST['bathrooms'] ?? 0);
-  $description = trim((string) ($_POST['description'] ?? ''));
+  $title = $form['title'];
+  $location = $form['location'];
+  $address = $form['address'];
+  $price = (float) ($form['price'] !== '' ? $form['price'] : 0);
+  $purpose = strtolower($form['purpose']);
+  $contact = $form['contact'];
+  $bedrooms = (int) ($form['bedrooms'] !== '' ? $form['bedrooms'] : 0);
+  $bathrooms = (int) ($form['bathrooms'] !== '' ? $form['bathrooms'] : 0);
+  $available_from = $form['available_from'];
+  $amenities = $form['amenities'];
+  $description = $form['description'];
 
-  $updated = rc_mig_update_property_for_landlord($conn, $prop_id, $landlord_id, [
-    'title' => $title,
-    'location' => $location,
-    'price' => $price,
-    'contact' => $contact,
-    'bedrooms' => $bedrooms,
-    'bathrooms' => $bathrooms,
-    'description' => $description,
-  ]);
+  if ($title === '' || $location === '' || $price <= 0 || $contact === '') {
+    $message = 'Title, location, landlord number, and price are required.';
+  } elseif (!preg_match('/^[0-9+()\-\s]{7,20}$/', $contact)) {
+    $message = 'Please provide a valid landlord phone number.';
+  }
 
-  if (!empty($updated['ok'])) {
+  $extra_details = [];
+  if ($address !== '') {
+    $extra_details[] = 'Address: ' . $address;
+  }
+  if ($purpose !== '') {
+    $extra_details[] = 'Purpose: ' . ucfirst($purpose);
+  }
+  if ($available_from !== '') {
+    $extra_details[] = 'Available From: ' . $available_from;
+  }
+  if ($amenities !== '') {
+    $extra_details[] = 'Amenities: ' . $amenities;
+  }
+  $full_description = trim($description);
+  if (!empty($extra_details)) {
+    $full_description = trim($full_description . "\n\n" . implode("\n", $extra_details));
+  }
+
+  $updated = ['ok' => false, 'error' => 'Validation failed'];
+  if ($message === '') {
+    $updated = rc_mig_update_property_for_landlord($conn, $prop_id, $landlord_id, [
+      'title' => $title,
+      'location' => $location,
+      'price' => $price,
+      'contact' => $contact,
+      'bedrooms' => $bedrooms,
+      'bathrooms' => $bathrooms,
+      'description' => $full_description,
+    ]);
+  }
+
+  if ($message !== '') {
+    // Keep validation message.
+  } elseif (!empty($updated['ok'])) {
     $failedImages = 0;
         // Handle new image uploads
         if (!empty($_FILES['photos']['name'][0])) {
@@ -294,37 +364,57 @@ textarea {
       <div class="form-grid">
         <div class="field">
           <label for="title">Property Title</label>
-          <input id="title" type="text" name="title" value="<?php echo htmlspecialchars($property['title']); ?>" required>
+          <input id="title" type="text" name="title" value="<?php echo htmlspecialchars($form['title']); ?>" required>
         </div>
 
         <div class="field">
           <label for="location">Location</label>
-          <input id="location" type="text" name="location" value="<?php echo htmlspecialchars($property['location']); ?>" required>
+          <input id="location" type="text" name="location" value="<?php echo htmlspecialchars($form['location']); ?>" required>
+        </div>
+
+        <div class="field">
+          <label for="address">Full Address</label>
+          <input id="address" type="text" name="address" placeholder="Street / community / nearby landmark" value="<?php echo htmlspecialchars($form['address']); ?>">
         </div>
 
         <div class="field">
           <label for="price">Price (USD)</label>
-          <input id="price" type="number" name="price" step="0.01" value="<?php echo htmlspecialchars((string) $property['price']); ?>" required>
+          <input id="price" type="number" name="price" step="0.01" min="1" value="<?php echo htmlspecialchars($form['price']); ?>" required>
         </div>
 
         <div class="field">
-          <label for="contact">Contact</label>
-          <input id="contact" type="text" name="contact" value="<?php echo htmlspecialchars($property['contact']); ?>" required>
+          <label for="purpose">Listing Purpose</label>
+          <input id="purpose" type="text" name="purpose" placeholder="Rent / Lease" value="<?php echo htmlspecialchars($form['purpose']); ?>">
+        </div>
+
+        <div class="field">
+          <label for="contact">Landlord Phone Number</label>
+          <input id="contact" type="text" name="contact" value="<?php echo htmlspecialchars($form['contact']); ?>" required>
         </div>
 
         <div class="field">
           <label for="bedrooms">Bedrooms</label>
-          <input id="bedrooms" type="number" name="bedrooms" min="0" value="<?php echo htmlspecialchars((string) $property['bedrooms']); ?>">
+          <input id="bedrooms" type="number" name="bedrooms" min="0" value="<?php echo htmlspecialchars($form['bedrooms']); ?>">
         </div>
 
         <div class="field">
           <label for="bathrooms">Bathrooms</label>
-          <input id="bathrooms" type="number" name="bathrooms" min="0" value="<?php echo htmlspecialchars((string) $property['bathrooms']); ?>">
+          <input id="bathrooms" type="number" name="bathrooms" min="0" value="<?php echo htmlspecialchars($form['bathrooms']); ?>">
+        </div>
+
+        <div class="field">
+          <label for="available_from">Available From</label>
+          <input id="available_from" type="date" name="available_from" value="<?php echo htmlspecialchars($form['available_from']); ?>">
+        </div>
+
+        <div class="field">
+          <label for="amenities">Amenities (comma separated)</label>
+          <input id="amenities" type="text" name="amenities" placeholder="Parking, Security, Generator" value="<?php echo htmlspecialchars($form['amenities']); ?>">
         </div>
 
         <div class="field full">
           <label for="description">Description</label>
-          <textarea id="description" name="description"><?php echo htmlspecialchars($property['description']); ?></textarea>
+          <textarea id="description" name="description"><?php echo htmlspecialchars($form['description']); ?></textarea>
         </div>
 
         <div class="field full">

@@ -2,7 +2,6 @@
 session_start();
 include "app_init.php";
 
-// Ensure landlord access
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'landlord') {
     header("Location: login.php");
     exit;
@@ -18,6 +17,7 @@ $pending_requests = (int) $dashboardStats['pending_requests'];
 $booked_count = (int) $dashboardStats['booked_count'];
 $pending_payments = (int) $dashboardStats['pending_payments'];
 $pending_income = (float) $dashboardStats['pending_income'];
+$current_page = basename((string) ($_SERVER['PHP_SELF'] ?? ''));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -41,7 +41,7 @@ $pending_income = (float) $dashboardStats['pending_income'];
     --brand-deep: #15543e;
     --accent: #ff7a2f;
     --line: rgba(33, 39, 51, 0.12);
-    --card: rgba(255, 255, 255, 0.92);
+    --card: rgba(255, 255, 255, 0.94);
     --shadow: 0 18px 38px rgba(20, 31, 44, 0.15);
 }
 
@@ -58,51 +58,150 @@ body {
 }
 
 .container {
-    width: min(1120px, 94vw);
+    width: min(1220px, 95vw);
     margin: 0 auto;
 }
 
 .top {
-    padding: 30px 0 14px;
+    padding: 24px 0;
+}
+
+.shell {
+    display: flex;
+    gap: 18px;
+    align-items: stretch;
+}
+
+.sidebar {
+    width: 290px;
+    flex-shrink: 0;
+    background: linear-gradient(180deg, rgba(18, 64, 77, 0.96), rgba(14, 50, 63, 0.96));
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    color: #fff;
+    padding: 18px 14px;
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 48px);
+}
+
+.brand {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+    padding: 4px 6px 14px;
+    margin-bottom: 12px;
+}
+
+.brand h1 {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 1.15rem;
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+}
+
+.brand p {
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.9rem;
+}
+
+.side-section-title {
+    padding: 8px 10px;
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.74rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.side-nav {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.nav-link {
+    text-decoration: none;
+    color: #eaf4f1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border-radius: 11px;
+    padding: 10px 11px;
+    border: 1px solid transparent;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.nav-link:hover {
+    background: rgba(255, 255, 255, 0.11);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateX(2px);
+}
+
+.nav-link.active {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(143, 224, 196, 0.45);
+}
+
+.nav-link.active .nav-left i {
+    color: #fff;
+}
+
+.nav-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.nav-left i {
+    width: 18px;
+    text-align: center;
+    color: #8fe0c4;
+}
+
+.nav-count {
+    min-width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    padding: 0 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), #f15f13);
+    color: #fff;
+}
+
+.nav-link.logout {
+    margin-top: auto;
+    background: linear-gradient(140deg, #ef554d, #d53d36);
+    border-color: rgba(255, 255, 255, 0.22);
+}
+
+.nav-link.logout .nav-left i {
+    color: #fff;
+}
+
+.content {
+    flex: 1;
+    min-width: 0;
 }
 
 .head {
     background: linear-gradient(140deg, rgba(17, 59, 72, 0.94), rgba(31, 143, 103, 0.88));
     color: #fff;
-    border-radius: 22px;
-    padding: clamp(18px, 4vw, 28px);
+    border-radius: 20px;
+    padding: clamp(18px, 3.6vw, 28px);
     box-shadow: var(--shadow);
-    display: flex;
-    justify-content: space-between;
-    gap: 18px;
-    align-items: center;
-    flex-wrap: wrap;
 }
 
-.head h1 {
+.head h2 {
     font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: clamp(1.35rem, 3vw, 2rem);
+    font-size: clamp(1.3rem, 2.8vw, 1.9rem);
     letter-spacing: -0.02em;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
 }
 
-.head p {
-    color: rgba(255, 255, 255, 0.9);
-}
-
-.quick-stats {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.quick-stats span {
-    display: inline-block;
-    padding: 8px 11px;
-    border-radius: 999px;
-    font-size: 0.87rem;
-    background: rgba(255, 255, 255, 0.14);
-}
+.head p { color: rgba(255, 255, 255, 0.88); }
 
 .message {
     margin-top: 12px;
@@ -114,177 +213,265 @@ body {
     font-weight: 700;
 }
 
-.grid {
-    margin-top: 18px;
+.stat-grid {
+    margin-top: 14px;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
 }
 
-.card-btn {
-    position: relative;
-    text-decoration: none;
-    color: #273149;
+.stat-card {
+    background: var(--card);
+    border: 1px solid rgba(255, 255, 255, 0.92);
+    border-radius: 16px;
+    box-shadow: 0 10px 24px rgba(15, 31, 40, 0.09);
+    padding: 14px;
+}
+
+.stat-card .kicker {
+    color: var(--muted);
+    font-size: 0.82rem;
+    margin-bottom: 4px;
+}
+
+.stat-card .value {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 1.5rem;
+    letter-spacing: -0.02em;
+    color: #1b2738;
+}
+
+.panel-grid {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 12px;
+}
+
+.panel {
     background: var(--card);
     border: 1px solid rgba(255, 255, 255, 0.92);
     border-radius: 16px;
     box-shadow: 0 10px 24px rgba(15, 31, 40, 0.09);
     padding: 16px;
-    min-height: 125px;
+}
+
+.panel h3 {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 1.05rem;
+    margin-bottom: 10px;
+}
+
+.panel p {
+    color: var(--muted);
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+.quick-links {
+    margin-top: 10px;
     display: grid;
-    align-content: center;
-    justify-items: center;
-    gap: 9px;
-    text-align: center;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
 }
 
-.card-btn:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 16px 26px rgba(15, 31, 40, 0.14);
-}
-
-.card-btn i {
-    font-size: 1.8rem;
-    color: #15543e;
-}
-
-.card-btn .label {
+.quick-links a {
+    text-decoration: none;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: #fff;
+    color: #1d2a3a;
+    padding: 10px;
+    font-size: 0.88rem;
     font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-.badge {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    min-width: 24px;
-    height: 24px;
-    border-radius: 999px;
+.quick-links a:hover {
+    border-color: rgba(31, 143, 103, 0.45);
+    background: #f5fffb;
+}
+
+.health-list {
+    list-style: none;
     display: grid;
-    place-items: center;
-    font-size: 0.75rem;
-    font-weight: 800;
-    color: #fff;
-    background: linear-gradient(135deg, var(--accent), #f15f13);
+    gap: 8px;
 }
 
-.card-btn.logout {
-    background: linear-gradient(140deg, #ef554d, #d53d36);
-    color: #fff;
+.health-list li {
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    padding: 10px;
+    background: #fff;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: center;
 }
 
-.card-btn.logout i {
-    color: #fff;
+.health-list strong {
+    font-size: 0.9rem;
 }
 
-@media (max-width: 600px) {
-    .grid { grid-template-columns: 1fr 1fr; }
+.health-list span {
+    color: var(--muted);
+    font-size: 0.84rem;
 }
 
-@media (max-width: 430px) {
-    .grid { grid-template-columns: 1fr; }
+.watermark {
+    position: fixed;
+    right: 14px;
+    bottom: 10px;
+    z-index: 20;
+    color: rgba(35, 49, 70, 0.62);
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(31, 143, 103, 0.2);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    backdrop-filter: blur(3px);
+}
+
+@media (max-width: 1100px) {
+    .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .panel-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 900px) {
+    .shell { flex-direction: column; }
+    .sidebar {
+        width: 100%;
+        min-height: auto;
+    }
+    .nav-link.logout { margin-top: 8px; }
+}
+
+@media (max-width: 620px) {
+    .stat-grid { grid-template-columns: 1fr; }
+    .quick-links { grid-template-columns: 1fr; }
 }
 </style>
 </head>
 <body>
 <section class="top">
     <div class="container">
-        <div class="head">
-            <div>
-                <h1>Welcome, <?php echo htmlspecialchars($_SESSION['name']); ?></h1>
-                <p>Manage your listings, rental requests, and tenant communication in one place.</p>
-            </div>
-            <div class="quick-stats">
-                <span>Total Properties: <?php echo array_sum($counts); ?></span>
-                <span>Booked Units: <?php echo (int) $booked_count; ?></span>
-                <span>Pending Payments: $<?php echo number_format($pending_income, 2); ?></span>
-                <span>Requests: <?php echo (int) $pending_requests; ?></span>
-            </div>
-        </div>
+        <div class="shell">
+            <aside class="sidebar">
+                <div class="brand">
+                    <h1>Landlord Panel</h1>
+                    <p><?php echo htmlspecialchars($_SESSION['name']); ?></p>
+                </div>
 
-        <?php if ($message): ?>
-            <p class="message"><?php echo htmlspecialchars($message); ?></p>
-        <?php endif; ?>
+                <p class="side-section-title">Property Management</p>
+                <nav class="side-nav">
+                    <a href="my_properties.php" class="nav-link <?php echo $current_page === 'my_properties.php' ? 'active' : ''; ?>">
+                        <span class="nav-left"><i class="fas fa-house"></i>My Properties</span>
+                        <span class="nav-count"><?php echo array_sum($counts); ?></span>
+                    </a>
+                    <a href="add_property.php" class="nav-link <?php echo $current_page === 'add_property.php' ? 'active' : ''; ?>">
+                        <span class="nav-left"><i class="fas fa-plus-circle"></i>Upload Property</span>
+                    </a>
+                    <a href="approved_properties.php" class="nav-link <?php echo $current_page === 'approved_properties.php' ? 'active' : ''; ?>">
+                        <span class="nav-left"><i class="fas fa-circle-check"></i>Approved</span>
+                        <?php if ($counts['approved'] > 0): ?><span class="nav-count"><?php echo (int) $counts['approved']; ?></span><?php endif; ?>
+                    </a>
+                    <a href="pending_properties.php" class="nav-link <?php echo $current_page === 'pending_properties.php' ? 'active' : ''; ?>">
+                        <span class="nav-left"><i class="fas fa-hourglass-half"></i>Pending</span>
+                        <?php if ($counts['pending'] > 0): ?><span class="nav-count"><?php echo (int) $counts['pending']; ?></span><?php endif; ?>
+                    </a>
+                    <a href="taken_properties.php" class="nav-link <?php echo $current_page === 'taken_properties.php' ? 'active' : ''; ?>">
+                        <span class="nav-left"><i class="fas fa-circle-xmark"></i>Taken</span>
+                        <?php if ($counts['taken'] > 0): ?><span class="nav-count"><?php echo (int) $counts['taken']; ?></span><?php endif; ?>
+                    </a>
+                </nav>
 
-        <div class="grid">
-            <a href="my_properties.php" class="card-btn">
-                <i class="fas fa-house"></i>
-                <span class="label">My Properties</span>
-                <span class="badge"><?php echo array_sum($counts); ?></span>
-            </a>
+                <p class="side-section-title">Operations</p>
+                <nav class="side-nav">
+                    <a href="rental_requests.php" class="nav-link <?php echo $current_page === 'rental_requests.php' ? 'active' : ''; ?>">
+                        <span class="nav-left"><i class="fas fa-envelope-open-text"></i>Rental Requests</span>
+                        <?php if ($pending_requests > 0): ?><span class="nav-count"><?php echo (int) $pending_requests; ?></span><?php endif; ?>
+                    </a>
+                    <a href="manage_bookings.php" class="nav-link <?php echo $current_page === 'manage_bookings.php' ? 'active' : ''; ?>">
+                        <span class="nav-left"><i class="fas fa-calendar-check"></i>Bookings</span>
+                        <?php if ($booked_count > 0): ?><span class="nav-count"><?php echo (int) $booked_count; ?></span><?php endif; ?>
+                    </a>
+                    <a href="payment_approval.php" class="nav-link <?php echo $current_page === 'payment_approval.php' ? 'active' : ''; ?>">
+                        <span class="nav-left"><i class="fas fa-money-bill-check"></i>Payments</span>
+                        <?php if ($pending_payments > 0): ?><span class="nav-count"><?php echo (int) $pending_payments; ?></span><?php endif; ?>
+                    </a>
+                    <a href="landlord_income.php" class="nav-link <?php echo $current_page === 'landlord_income.php' ? 'active' : ''; ?>">
+                        <span class="nav-left"><i class="fas fa-chart-line"></i>Income</span>
+                    </a>
+                    <a href="chat.php" class="nav-link <?php echo $current_page === 'chat.php' ? 'active' : ''; ?>">
+                        <span class="nav-left"><i class="fas fa-comments"></i>Chat</span>
+                    </a>
+                    <a href="settings.php" class="nav-link <?php echo $current_page === 'settings.php' ? 'active' : ''; ?>">
+                        <span class="nav-left"><i class="fas fa-gear"></i>Settings</span>
+                    </a>
+                </nav>
 
-            <a href="rental_requests.php" class="card-btn">
-                <i class="fas fa-envelope-open-text"></i>
-                <span class="label">Rental Requests</span>
-                <?php if ($pending_requests > 0): ?>
-                    <span class="badge"><?php echo (int) $pending_requests; ?></span>
+                <a href="logout.php" class="nav-link logout">
+                    <span class="nav-left"><i class="fas fa-right-from-bracket"></i>Logout</span>
+                </a>
+            </aside>
+
+            <main class="content">
+                <div class="head">
+                    <h2>Dashboard Overview</h2>
+                    <p>Manage your listings, rental requests, tenant communication, and payment operations from one professional workspace.</p>
+                </div>
+
+                <?php if ($message): ?>
+                    <p class="message"><?php echo htmlspecialchars($message); ?></p>
                 <?php endif; ?>
-            </a>
 
-            <a href="add_property.php" class="card-btn">
-                <i class="fas fa-plus-circle"></i>
-                <span class="label">Upload Property</span>
-            </a>
+                <section class="stat-grid">
+                    <article class="stat-card">
+                        <p class="kicker">Total Properties</p>
+                        <p class="value"><?php echo (int) array_sum($counts); ?></p>
+                    </article>
+                    <article class="stat-card">
+                        <p class="kicker">Booked Units</p>
+                        <p class="value"><?php echo (int) $booked_count; ?></p>
+                    </article>
+                    <article class="stat-card">
+                        <p class="kicker">Pending Requests</p>
+                        <p class="value"><?php echo (int) $pending_requests; ?></p>
+                    </article>
+                    <article class="stat-card">
+                        <p class="kicker">Pending Payment Value</p>
+                        <p class="value">$<?php echo number_format($pending_income, 2); ?></p>
+                    </article>
+                </section>
 
-            <a href="approved_properties.php" class="card-btn">
-                <i class="fas fa-circle-check"></i>
-                <span class="label">Approved</span>
-                <?php if ($counts['approved'] > 0): ?>
-                    <span class="badge"><?php echo (int) $counts['approved']; ?></span>
-                <?php endif; ?>
-            </a>
+                <section class="panel-grid">
+                    <article class="panel">
+                        <h3>Quick Actions</h3>
+                        <p>Use these shortcuts to keep listings current and respond quickly to tenants.</p>
+                        <div class="quick-links">
+                            <a href="add_property.php"><i class="fas fa-plus-circle"></i>Add New Property</a>
+                            <a href="rental_requests.php"><i class="fas fa-envelope-open-text"></i>Review Requests</a>
+                            <a href="manage_bookings.php"><i class="fas fa-calendar-check"></i>Manage Bookings</a>
+                            <a href="payment_approval.php"><i class="fas fa-money-bill-check"></i>Verify Payments</a>
+                        </div>
+                    </article>
+                    <article class="panel">
+                        <h3>Portfolio Health</h3>
+                        <ul class="health-list">
+                            <li><strong>Approved Listings</strong><span><?php echo (int) $counts['approved']; ?> active</span></li>
+                            <li><strong>Pending Listings</strong><span><?php echo (int) $counts['pending']; ?> awaiting review</span></li>
+                            <li><strong>Taken Listings</strong><span><?php echo (int) $counts['taken']; ?> currently occupied</span></li>
+                            <li><strong>Pending Payments</strong><span><?php echo (int) $pending_payments; ?> to verify</span></li>
+                        </ul>
+                    </article>
+                </section>
 
-            <a href="pending_properties.php" class="card-btn">
-                <i class="fas fa-hourglass-half"></i>
-                <span class="label">Pending</span>
-                <?php if ($counts['pending'] > 0): ?>
-                    <span class="badge"><?php echo (int) $counts['pending']; ?></span>
-                <?php endif; ?>
-            </a>
-
-            <a href="taken_properties.php" class="card-btn">
-                <i class="fas fa-circle-xmark"></i>
-                <span class="label">Taken</span>
-                <?php if ($counts['taken'] > 0): ?>
-                    <span class="badge"><?php echo (int) $counts['taken']; ?></span>
-                <?php endif; ?>
-            </a>
-
-            <a href="chat.php" class="card-btn">
-                <i class="fas fa-comments"></i>
-                <span class="label">Chat</span>
-            </a>
-
-            <a href="manage_bookings.php" class="card-btn">
-                <i class="fas fa-calendar-check"></i>
-                <span class="label">Bookings</span>
-                <?php if ($booked_count > 0): ?>
-                    <span class="badge"><?php echo (int) $booked_count; ?></span>
-                <?php endif; ?>
-            </a>
-
-            <a href="payment_approval.php" class="card-btn">
-                <i class="fas fa-money-bill-check"></i>
-                <span class="label">Payments</span>
-                <?php if ($pending_payments > 0): ?>
-                    <span class="badge"><?php echo (int) $pending_payments; ?></span>
-                <?php endif; ?>
-            </a>
-
-            <a href="landlord_income.php" class="card-btn">
-                <i class="fas fa-chart-line"></i>
-                <span class="label">Income</span>
-            </a>
-
-            <a href="settings.php" class="card-btn">
-                <i class="fas fa-gear"></i>
-                <span class="label">Settings</span>
-            </a>
-
-            <a href="logout.php" class="card-btn logout">
-                <i class="fas fa-right-from-bracket"></i>
-                <span class="label">Logout</span>
-            </a>
+                <p class="watermark">developed by Tec Liberia CEO</p>
+            </main>
         </div>
     </div>
 </section>
