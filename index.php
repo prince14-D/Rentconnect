@@ -753,7 +753,7 @@ if (!empty($properties)) {
                                 <?php endif; ?>
                             </div>
                             <p class="price">$<?php echo number_format($property['price']); ?></p>
-                            <p class="landlord">Landlord: <?php echo htmlspecialchars($property['landlord_name']); ?></p>
+                            <p class="landlord">Landlord: <?php echo htmlspecialchars((string) ($property['landlord_name'] ?? 'Unknown')); ?></p>
                             <a class="view-link" href="login.php">View Details</a>
                         </div>
                     </article>

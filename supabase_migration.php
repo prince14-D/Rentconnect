@@ -1639,17 +1639,18 @@ function rc_mig_get_index_properties($conn, ?int $userId, ?string $userRole, str
         }
     }
 
-    $sql = "SELECT p.*, l.name AS landlord_name
+        $sql = "SELECT p.*, l.name AS landlord_name
             FROM properties p
-            JOIN users l ON p.landlord_id = l.id
+            LEFT JOIN users l ON l.id = COALESCE(NULLIF(p.landlord_id, 0), NULLIF(p.owner_id, 0))
             WHERE 1=1";
     $params = [];
     $types = '';
 
     if ($userRole === 'landlord' && $userId !== null) {
-        $sql .= " AND p.landlord_id = ? AND p.status IN ('pending', 'approved')";
+        $sql .= " AND (p.landlord_id = ? OR p.owner_id = ?) AND p.status IN ('pending', 'approved')";
         $params[] = $userId;
-        $types .= 'i';
+        $params[] = $userId;
+        $types .= 'ii';
     } else {
         $sql .= " AND p.status = 'approved'";
     }
@@ -1682,6 +1683,14 @@ function rc_mig_get_index_properties($conn, ?int $userId, ?string $userRole, str
     $stmt->execute();
     $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
+
+    foreach ($rows as &$row) {
+        if (!isset($row['landlord_name']) || trim((string) $row['landlord_name']) === '') {
+            $row['landlord_name'] = 'Unknown';
+        }
+    }
+    unset($row);
+
     return $rows;
 }
 
