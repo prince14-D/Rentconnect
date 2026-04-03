@@ -238,9 +238,9 @@ footer a { color: var(--brand-deep); text-decoration: none; font-weight: 700; }
       <h2>Meet Our Team</h2>
       <div class="team">
         <div class="member"><img src="images/PD.jpeg" alt="Prince W. Dahn Jr"><h3>Prince W. Dahn Jr</h3><p>Founder & CEO</p></div>
-        <div class="member"><img src="images/UA.jpeg" alt="Urvashi Agarwal"><h3>Urvashi Agarwal</h3><p>Operations Manager</p></div>
-        <div class="member"><img src="images/team1.png" alt="Michael Doe"><h3>Michael Doe</h3><p>Lead Developer</p></div>
-        <div class="member"><img src="images/team1.png" alt="Grace Koffa"><h3>Grace Koffa</h3><p>Marketing & Outreach</p></div>
+        <div class="member"><img src="images/OA.jpeg" alt="Chris G Jackson"><h3>Chris G Jackson</h3><p>Operations Manager</p></div>
+        <div class="member"><img src="images/Stanley.png" alt="Stanley S. Garyeazohn"><h3>Stanley S. Garyeazohn</h3><p>Lead Developer</p></div>
+        <div class="member"><img src="images/Sam.jpeg" alt="Samuka Teah"><h3>Samuka Teah</h3><p>Marketing & Outreach</p></div>
       </div>
     </article>
   </section>

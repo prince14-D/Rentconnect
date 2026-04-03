@@ -43,6 +43,25 @@ if (!function_exists('rc_load_env_file')) {
     }
 }
 
+if (!function_exists('rc_env_value')) {
+    function rc_env_value(string $name, string $default = ''): string {
+        $value = getenv($name);
+        if ($value !== false && $value !== '') {
+            return (string) $value;
+        }
+
+        if (isset($_ENV[$name]) && $_ENV[$name] !== '') {
+            return (string) $_ENV[$name];
+        }
+
+        if (isset($_SERVER[$name]) && $_SERVER[$name] !== '') {
+            return (string) $_SERVER[$name];
+        }
+
+        return $default;
+    }
+}
+
 $envPath = __DIR__ . '/.env';
 if (is_file($envPath)) {
     rc_load_env_file($envPath);

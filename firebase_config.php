@@ -1,15 +1,32 @@
 <?php
 
 function rc_firebase_config(): array {
+    $envValue = function_exists('rc_env_value') ? 'rc_env_value' : static function (string $name, string $default = ''): string {
+        $value = getenv($name);
+        if ($value !== false && $value !== '') {
+            return (string) $value;
+        }
+
+        if (isset($_ENV[$name]) && $_ENV[$name] !== '') {
+            return (string) $_ENV[$name];
+        }
+
+        if (isset($_SERVER[$name]) && $_SERVER[$name] !== '') {
+            return (string) $_SERVER[$name];
+        }
+
+        return $default;
+    };
+
     return [
-        'apiKey' => getenv('FIREBASE_API_KEY') ?: '',
-        'authDomain' => getenv('FIREBASE_AUTH_DOMAIN') ?: '',
-        'projectId' => getenv('FIREBASE_PROJECT_ID') ?: '',
-        'storageBucket' => getenv('FIREBASE_STORAGE_BUCKET') ?: '',
-        'messagingSenderId' => getenv('FIREBASE_MESSAGING_SENDER_ID') ?: '',
-        'appId' => getenv('FIREBASE_APP_ID') ?: '',
+        'apiKey' => $envValue('FIREBASE_API_KEY'),
+        'authDomain' => $envValue('FIREBASE_AUTH_DOMAIN'),
+        'projectId' => $envValue('FIREBASE_PROJECT_ID'),
+        'storageBucket' => $envValue('FIREBASE_STORAGE_BUCKET'),
+        'messagingSenderId' => $envValue('FIREBASE_MESSAGING_SENDER_ID'),
+        'appId' => $envValue('FIREBASE_APP_ID'),
         // Optional strict audience validation for Firebase/Google ID tokens.
-        'webClientId' => getenv('FIREBASE_WEB_CLIENT_ID') ?: '',
+        'webClientId' => $envValue('FIREBASE_WEB_CLIENT_ID'),
     ];
 }
 
